@@ -1,136 +1,110 @@
-import { Emitter } from "./emitter";
+import { BatchHandle, type BatchOptions } from "./batch-handle";
+import { UploadHandle } from "./upload-handle";
 
 import type { StorageProvider } from "../providers/provider";
+import type { UploadOptions } from "../types/provider";
+import type { UploadItem, UploadState } from "../types/upload";
 
-import type {
-  UploadEvents,
-  UploadItem,
-  UploadState,
-  UploadStatus,
-} from "../types/upload";
+export class UploadManager {
+  private provider: StorageProvider;
+  private uploadHandles: UploadHandle[] = [];
+  private batches: BatchHandle[] = [];
+  private changeListeners = new Set<(state: UploadState) => void>();
+  private cachedState: UploadState | null = null;
 
-import type { ProviderUploadTask, UploadOptions } from "../types/provider";
-
-export class UploadManager extends Emitter<UploadEvents> {
-  private uploads: UploadItem[] = [];
-
-  constructor(private provider: StorageProvider) {
-    super();
+  constructor(provider: StorageProvider) {
+    this.provider = provider;
   }
 
-  getState(): UploadState {
-    return {
-      uploads: this.uploads,
+  getState = (): UploadState => {
+    if (this.cachedState === null) {
+      this.cachedState = {
+        uploads: this.uploadHandles.map((h) => h.upload),
+        batches: this.batches.map((b) => b.snapshot()),
+      };
+    }
+    return this.cachedState;
+  };
 
-      batches: [],
+  subscribe = (listener: (state: UploadState) => void): (() => void) => {
+    this.changeListeners.add(listener);
+    return () => {
+      this.changeListeners.delete(listener);
     };
+  };
+
+  uploadFile(file: File, options: UploadOptions): UploadHandle {
+    const handle = this.createHandle(file);
+    this.uploadHandles.push(handle);
+    this.notifyChange();
+    this.startUpload(handle, options);
+    return handle;
   }
 
-  uploadFile(
-    file: File,
+  uploadFiles(
+    files: File[],
+    optionsFor: (file: File, index: number) => UploadOptions,
+    batchOptions: BatchOptions = {},
+  ): BatchHandle {
+    const id = crypto.randomUUID();
+    const handles = files.map((file) => this.createHandle(file, id));
+    const optionsByUploadId = new Map<string, UploadOptions>();
+    handles.forEach((h, i) => {
+      const file = files[i];
+      if (!file) return;
+      optionsByUploadId.set(h.upload.id, optionsFor(file, i));
+    });
 
-    options: UploadOptions,
-  ) {
+    this.uploadHandles.push(...handles);
+
+    const batch = new BatchHandle({
+      id,
+      uploads: handles,
+      options: batchOptions,
+      startNext: (handle) => {
+        const opts = optionsByUploadId.get(handle.upload.id);
+        if (!opts) return;
+        this.startUpload(handle, opts);
+      },
+      onChange: () => this.notifyChange(),
+    });
+
+    this.batches.push(batch);
+    this.notifyChange();
+    batch._start();
+    return batch;
+  }
+
+  private createHandle(file: File, batchId?: string): UploadHandle {
     const upload: UploadItem = {
       id: crypto.randomUUID(),
-
       file,
-
       progress: 0,
-
       bytesTransferred: 0,
-
       totalBytes: file.size,
-
       status: "queued",
+      ...(batchId !== undefined ? { batchId } : {}),
     };
-
-    this.uploads.push(upload);
-
-    this.emit("change", this.getState());
-
-    const updateStatus = (status: UploadStatus) => {
-      upload.status = status;
-
-      this.emit("change", this.getState());
-    };
-
-    updateStatus("uploading");
-
-    const task = this.provider.upload(
-      file,
-
-      options,
-
-      {
-        onProgress: (bytesTransferred, totalBytes) => {
-          upload.bytesTransferred = bytesTransferred;
-
-          upload.totalBytes = totalBytes;
-
-          upload.progress = (bytesTransferred / totalBytes) * 100;
-
-          this.emit("progress", upload);
-
-          this.emit("change", this.getState());
-        },
-
-        onError: (error) => {
-          upload.error = error;
-
-          updateStatus("error");
-
-          this.emit("error", upload);
-        },
-
-        onSuccess: (downloadURL) => {
-          upload.downloadURL = downloadURL;
-
-          upload.progress = 100;
-
-          updateStatus("success");
-
-          this.emit("success", upload);
-        },
-      },
-    );
-
-    return this.createTaskControls(upload, task);
+    return new UploadHandle(upload, () => this.notifyChange());
   }
 
-  private createTaskControls(
-    upload: UploadItem,
+  private startUpload(handle: UploadHandle, options: UploadOptions): void {
+    handle._setStatus("uploading");
+    const task = this.provider.upload(handle.upload.file, options, {
+      onProgress: (bytesTransferred, totalBytes) =>
+        handle._reportProgress(bytesTransferred, totalBytes),
+      onError: (error) => handle._reportError(error),
+      onSuccess: (downloadURL) => handle._reportSuccess(downloadURL),
+    });
+    handle._attachTask(task);
+    this.notifyChange();
+  }
 
-    task: ProviderUploadTask,
-  ) {
-    return {
-      upload,
-
-      cancel: () => {
-        task.cancel();
-
-        upload.status = "canceled";
-
-        this.emit("canceled", upload);
-
-        this.emit("change", this.getState());
-      },
-
-      pause: () => {
-        task.pause?.();
-
-        upload.status = "paused";
-
-        this.emit("change", this.getState());
-      },
-
-      resume: () => {
-        task.resume?.();
-
-        upload.status = "uploading";
-
-        this.emit("change", this.getState());
-      },
-    };
+  private notifyChange(): void {
+    this.cachedState = null;
+    const state = this.getState();
+    for (const listener of this.changeListeners) {
+      listener(state);
+    }
   }
 }

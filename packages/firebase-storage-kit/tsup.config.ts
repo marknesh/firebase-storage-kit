@@ -8,7 +8,11 @@ export default defineConfig({
     firebase: "./src/firebase.ts",
   },
   format: ["esm"],
-  dts: true,
+  dts: {
+    compilerOptions: {
+      stripInternal: true,
+    },
+  },
   clean: true,
   treeshake: true,
   splitting: true,
