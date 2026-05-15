@@ -1,15 +1,15 @@
-# firebase-storage-kit
+# firebase-storage-kit (monorepo)
 
-To install dependencies:
+Workspace for **`firebase-storage-kit`**, a small browser-oriented upload helper for Firebase Storage.
+
+## Packages
+
+- [`packages/firebase-storage-kit`](./packages/firebase-storage-kit) — published npm package (see its README for install and usage).
+
+## Development
 
 ```bash
 bun install
+bun run build
+bun run typecheck
 ```
-
-To run:
-
-```bash
-bun run index.ts
-```
-
-This project was created using `bun init` in bun v1.2.20. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
