@@ -1,11 +1,21 @@
 # firebase-storage-kit
 
-If you've built a file picker on top of Firebase Storage, you've probably wired the same things again: progress updates, error handling, cancellation, and some limit on parallel uploads when someone selects a whole folder. This library is a thin layer for that, a single upload manager with progress updates and batched uploads with configurable concurrency.
+Upload manager for Firebase Storage with progress, cancellation, batch uploads, and configurable concurrency.
 
 ## Install
 
+With npm:
+
 ```bash
 npm install firebase-storage-kit
+```
+
+Or with Yarn, pnpm, or Bun:
+
+```bash
+yarn add firebase-storage-kit
+pnpm add firebase-storage-kit
+bun add firebase-storage-kit
 ```
 
 ## Quick start
@@ -50,13 +60,6 @@ const unsubscribe = manager.subscribe((state) => {
   console.log(state.uploads, state.batches);
 });
 ```
-
-## Entry points
-
-| Import                          | Use                                                   |
-| ------------------------------- | ----------------------------------------------------- |
-| `firebase-storage-kit`          | `UploadManager`, `UploadHandle`, `BatchHandle`, types |
-| `firebase-storage-kit/firebase` | `FirebaseStorageProvider`                             |
 
 ## License
 

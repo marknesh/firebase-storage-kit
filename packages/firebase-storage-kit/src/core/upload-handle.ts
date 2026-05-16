@@ -11,6 +11,7 @@ export type UploadHandleEvents = {
   statusChange: UploadItem;
 };
 
+/** Controls one file upload: `pause`, `resume`, `cancel`, and listen for progress with `.on`. */
 export class UploadHandle extends Emitter<UploadHandleEvents> {
   public readonly upload: UploadItem;
 

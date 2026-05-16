@@ -5,6 +5,13 @@ import type { StorageProvider } from "../providers/provider";
 import type { UploadOptions } from "../types/provider";
 import type { UploadItem, UploadState } from "../types/upload";
 
+/**
+ * Uploads files and tracks each one.
+ *
+ * You can react in two ways: call `.on(...)` on each {@link UploadHandle} / {@link BatchHandle}, **or** call `subscribe` to get the same lists
+ * that {@link UploadManager.getState} returns whenever anything changes (call the returned function to stop listening).
+ *
+ */
 export class UploadManager {
   private provider: StorageProvider;
   private uploadHandles: UploadHandle[] = [];
@@ -16,6 +23,7 @@ export class UploadManager {
     this.provider = provider;
   }
 
+  /** Current `uploads` and `batches` state. */
   getState = (): UploadState => {
     if (this.cachedState === null) {
       this.cachedState = {
@@ -26,6 +34,7 @@ export class UploadManager {
     return this.cachedState;
   };
 
+  /** Runs `listener` after each change; returns a function — call it to unsubscribe. */
   subscribe = (listener: (state: UploadState) => void): (() => void) => {
     this.changeListeners.add(listener);
     return () => {
@@ -33,6 +42,7 @@ export class UploadManager {
     };
   };
 
+  /** Starts the upload now.`options.path` is the object path in storage (see {@link UploadOptions}). */
   uploadFile(file: File, options: UploadOptions): UploadHandle {
     const handle = this.createHandle(file);
     this.uploadHandles.push(handle);
@@ -41,6 +51,24 @@ export class UploadManager {
     return handle;
   }
 
+  /**
+   * Upload several files as one batch. The optional third argument sets how many run at once
+   * and what happens when one file fails — see {@link BatchOptions}.
+   *
+   * @remarks
+   * `optionsFor` picks storage options per file (same as `uploadFile`); index matches `files` order.
+   * If `continueOnError` is `false`, the first failure cancels the other files and the batch fires `error`.
+   * If it stays `true` (default), other files keep going; when every file has finished, the batch fires `success`.
+   *
+   * @example
+   * ```ts
+   * const batch = manager.uploadFiles(
+   *   files,
+   *   (file) => ({ path: `uploads/${file.name}` }),
+   *   { concurrency: 2, continueOnError: true },
+   * );
+   * ```
+   */
   uploadFiles(
     files: File[],
     optionsFor: (file: File, index: number) => UploadOptions,

@@ -5,12 +5,12 @@ import {
   type FirebaseStorage,
 } from "firebase/storage";
 
-import type { StorageProvider } from "./provider";
 import type {
   ProviderUploadCallbacks,
   ProviderUploadTask,
   UploadOptions,
 } from "../types/provider";
+import type { StorageProvider } from "./provider";
 
 export class FirebaseStorageProvider implements StorageProvider {
   constructor(private storage: FirebaseStorage) {}

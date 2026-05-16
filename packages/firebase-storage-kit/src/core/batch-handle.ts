@@ -2,6 +2,10 @@ import type { UploadBatch, UploadItem } from "../types/upload";
 import { Emitter } from "./emitter";
 import type { UploadHandle } from "./upload-handle";
 
+/**
+ * Events on a batch from {@link UploadManager.uploadFiles}. `progress` / `change` carry a {@link UploadBatch} snapshot.
+ * `uploadSuccess` and `uploadError` fire once per child. When all children are done: `success` (normal end) or `error` (only if `continueOnError` was `false` and one failed).
+ */
 export type BatchHandleEvents = {
   progress: UploadBatch;
   uploadSuccess: UploadItem;
@@ -11,16 +15,14 @@ export type BatchHandleEvents = {
   change: UploadBatch;
 };
 
+/** Settings for {@link UploadManager.uploadFiles} (third argument). */
 export interface BatchOptions {
-  /** Maximum number of uploads in-flight at the same time. Defaults to 3. */
+  /** How many files upload at the same time. Default is 3. */
   concurrency?: number;
   /**
-   * When true (default), a failing upload does not affect siblings; the batch
-   * still emits `success` once all children have settled and callers inspect
-   * individual `UploadItem` errors.
+   * `true` (default): if one file fails, the others keep going. When every file has finished, the batch fires `success` — look at each upload for errors.
    *
-   * When false, the first failure cancels all queued and in-flight siblings
-   * and the batch emits `error`.
+   * `false`: the first failure stops the other files and the batch fires `error`.
    */
   continueOnError?: boolean;
 }
@@ -33,6 +35,9 @@ export interface BatchHandleInit {
   onChange: () => void;
 }
 
+/**
+ * A group of files from {@link UploadManager.uploadFiles}. Use `.on(...)` like a single {@link UploadHandle}, plus `snapshot()` for totals.
+ */
 export class BatchHandle extends Emitter<BatchHandleEvents> {
   public readonly id: string;
   public readonly uploads: UploadHandle[];

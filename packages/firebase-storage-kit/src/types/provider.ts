@@ -15,5 +15,6 @@ export interface ProviderUploadCallbacks {
 }
 
 export interface UploadOptions {
+  /** Object path in the bucket (Firebase), e.g. `uploads/photo.jpg`. */
   path: string;
 }
