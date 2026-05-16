@@ -1,3 +1,4 @@
+/** The current state of the upload manager. */
 export interface UploadState {
   uploads: UploadItem[];
   batches: UploadBatch[];
