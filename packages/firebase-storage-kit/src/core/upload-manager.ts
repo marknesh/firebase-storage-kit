@@ -6,7 +6,7 @@ import type { UploadOptions } from "../types/provider";
 import type { UploadItem, UploadState } from "../types/upload";
 
 /**
- * Uploads files and tracks each one.
+ * Uploads files and tracks each upload or batch.
  *
  * You can react in two ways: call `.on(...)` on each {@link UploadHandle} / {@link BatchHandle}, **or** call `subscribe` to get the same lists
  * that {@link UploadManager.getState} returns whenever anything changes (call the returned function to stop listening).
@@ -42,7 +42,10 @@ export class UploadManager {
     };
   };
 
-  /** Starts the upload now.`options.path` is the object path in storage (see {@link UploadOptions}). */
+  /** Starts the file upload.`options.path` is the object path in storage (see {@link UploadOptions}).
+   *
+   * @returns An {@link UploadHandle} to control the upload: `pause`, `resume`, `cancel`, and listen for progress with `.on`.
+   */
   uploadFile(file: File, options: UploadOptions): UploadHandle {
     const handle = this.createHandle(file);
     this.uploadHandles.push(handle);
@@ -60,14 +63,6 @@ export class UploadManager {
    * If `continueOnError` is `false`, the first failure cancels the other files and the batch fires `error`.
    * If it stays `true` (default), other files keep going; when every file has finished, the batch fires `success`.
    *
-   * @example
-   * ```ts
-   * const batch = manager.uploadFiles(
-   *   files,
-   *   (file) => ({ path: `uploads/${file.name}` }),
-   *   { concurrency: 2, continueOnError: true },
-   * );
-   * ```
    */
   uploadFiles(
     files: File[],
