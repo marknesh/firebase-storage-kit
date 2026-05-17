@@ -1,7 +1,7 @@
 {
   "name": "firebase-storage-kit",
   "version": "0.0.2",
-  "description": "Browser upload manager for Firebase Storage with batches, concurrency, and pause/resume.",
+  "description": "Upload manager for Firebase Storage with progress, cancellation, batch uploads, and configurable concurrency.",
   "keywords": [
     "firebase",
     "firebase-storage",
