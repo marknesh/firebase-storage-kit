@@ -1,6 +1,6 @@
 # firebase-storage-kit
 
-Upload manager for Firebase Storage with progress, cancellation, batch uploads, and configurable concurrency.
+Storage manager for Firebase Storage with uploads, progress tracking, batch uploads, and file query helpers.
 
 ## Install
 
@@ -22,11 +22,11 @@ bun add firebase-storage-kit
 
 ```ts
 import { getStorage } from "firebase/storage";
-import { UploadManager } from "firebase-storage-kit";
+import { StorageManager } from "firebase-storage-kit";
 import { FirebaseStorageProvider } from "firebase-storage-kit/firebase";
 
 const storage = getStorage(app);
-const manager = new UploadManager(new FirebaseStorageProvider(storage));
+const manager = new StorageManager(new FirebaseStorageProvider(storage));
 
 const handle = manager.uploadFile(file, { path: `uploads/${file.name}` });
 
@@ -60,6 +60,22 @@ const unsubscribe = manager.subscribe((state) => {
   console.log(state.uploads, state.batches);
 });
 ```
+
+### Querying files
+
+```ts
+const exists = await manager.exists("uploads/photo.jpg");
+
+if (exists) {
+  const meta = await manager.getMetadata("uploads/photo.jpg");
+  const url = await manager.getDownloadURL("uploads/photo.jpg");
+  console.log(meta.size, url);
+}
+
+await manager.delete("uploads/old.jpg");
+```
+
+`exists` returns `false` only when the object is not found. Permission and network errors are thrown.
 
 ## License
 

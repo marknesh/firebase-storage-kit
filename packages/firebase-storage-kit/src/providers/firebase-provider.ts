@@ -1,8 +1,11 @@
 import {
+  deleteObject,
   getDownloadURL,
+  getMetadata,
   ref,
   uploadBytesResumable,
   type FirebaseStorage,
+  type StorageError,
 } from "firebase/storage";
 
 import type {
@@ -10,6 +13,7 @@ import type {
   ProviderUploadTask,
   UploadOptions,
 } from "../types/provider";
+import type { FileMetadata } from "../types/metadata";
 import type { StorageProvider } from "./provider";
 
 export class FirebaseStorageProvider implements StorageProvider {
@@ -65,5 +69,37 @@ export class FirebaseStorageProvider implements StorageProvider {
         task.resume();
       },
     };
+  }
+
+  async exists(path: string): Promise<boolean> {
+    try {
+      await getMetadata(ref(this.storage, path));
+      return true;
+    } catch (err) {
+      if ((err as StorageError).code === "storage/object-not-found") {
+        return false;
+      }
+      throw err;
+    }
+  }
+
+  async getMetadata(path: string): Promise<FileMetadata> {
+    const meta = await getMetadata(ref(this.storage, path));
+    return {
+      path,
+      size: meta.size,
+      contentType: meta.contentType,
+      createdAt: new Date(meta.timeCreated),
+      updatedAt: new Date(meta.updated),
+      customMetadata: meta.customMetadata,
+    };
+  }
+
+  getDownloadURL(path: string): Promise<string> {
+    return getDownloadURL(ref(this.storage, path));
+  }
+
+  async delete(path: string): Promise<void> {
+    await deleteObject(ref(this.storage, path));
   }
 }

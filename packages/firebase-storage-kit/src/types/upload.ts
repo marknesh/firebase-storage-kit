@@ -1,5 +1,5 @@
-/** The current state of the upload manager. */
-export interface UploadState {
+/** The current state of the storage manager. */
+export interface StorageState {
   uploads: UploadItem[];
   batches: UploadBatch[];
 }
