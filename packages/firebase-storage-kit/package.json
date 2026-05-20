@@ -30,10 +30,6 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./firebase": {
-      "types": "./dist/firebase.d.ts",
-      "import": "./dist/firebase.js"
     }
   },
   "files": [

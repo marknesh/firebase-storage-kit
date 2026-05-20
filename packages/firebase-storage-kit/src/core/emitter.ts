@@ -1,7 +1,7 @@
 type Listener<TPayload> = (payload: TPayload) => void;
 
 export class Emitter<TEvents extends Record<string, unknown>> {
-  private listeners = new Map<keyof TEvents, Set<Listener<any>>>();
+  private listeners: { [K in keyof TEvents]?: Set<Listener<TEvents[K]>> } = {};
 
   /**
    * @param event The event to listen for.
@@ -9,14 +9,14 @@ export class Emitter<TEvents extends Record<string, unknown>> {
    * @returns A function to unsubscribe from the event.
    */
   on<K extends keyof TEvents>(event: K, listener: Listener<TEvents[K]>) {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, new Set());
+    if (!this.listeners[event]) {
+      this.listeners[event] = new Set();
     }
 
-    this.listeners.get(event)?.add(listener);
+    this.listeners[event]!.add(listener);
 
     return () => {
-      this.listeners.get(event)?.delete(listener);
+      this.listeners[event]?.delete(listener);
     };
   }
 
@@ -25,7 +25,7 @@ export class Emitter<TEvents extends Record<string, unknown>> {
    * @param payload The payload to emit.
    */
   protected emit<K extends keyof TEvents>(event: K, payload: TEvents[K]) {
-    const listeners = this.listeners.get(event);
+    const listeners = this.listeners[event];
 
     if (!listeners) {
       return;
