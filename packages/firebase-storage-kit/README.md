@@ -23,10 +23,9 @@ bun add firebase-storage-kit
 ```ts
 import { getStorage } from "firebase/storage";
 import { StorageManager } from "firebase-storage-kit";
-import { FirebaseStorageProvider } from "firebase-storage-kit/firebase";
 
 const storage = getStorage(app);
-const manager = new StorageManager(new FirebaseStorageProvider(storage));
+const manager = new StorageManager(storage);
 
 const handle = manager.uploadFile(file, { path: `uploads/${file.name}` });
 
