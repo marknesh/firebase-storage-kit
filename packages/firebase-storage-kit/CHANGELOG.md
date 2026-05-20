@@ -1,5 +1,11 @@
 # firebase-storage-kit
 
+## 1.1.0
+
+### Minor Changes
+
+- [#9](https://github.com/marknesh/firebase-storage-kit/pull/9) [`c27fe73`](https://github.com/marknesh/firebase-storage-kit/commit/c27fe737d5d98152e9fe960c6fa7932b4d1efa5f) Thanks [@marknesh](https://github.com/marknesh)! - Simplify setup: `StorageManager` now accepts a `FirebaseStorage` instance from `getStorage()` instead of a `StorageProvider`. Removed the `firebase-storage-kit/firebase` export; import everything from `firebase-storage-kit`.
+
 ## 1.0.0
 
 ### Major Changes
