@@ -3,7 +3,7 @@ import { Emitter } from "./emitter";
 import type { UploadHandle } from "./upload-handle";
 
 /**
- * Events on a batch from {@link UploadManager.uploadFiles}. `progress` / `change` carry a {@link UploadBatch} snapshot.
+ * Events on a batch from {@link StorageManager.uploadFiles}. `progress` / `change` carry a {@link UploadBatch} snapshot.
  * `uploadSuccess` and `uploadError` fire once per child. When all children are done: `success` (normal end) or `error` (only if `continueOnError` was `false` and one failed).
  */
 export type BatchHandleEvents = {
@@ -15,7 +15,7 @@ export type BatchHandleEvents = {
   change: UploadBatch;
 };
 
-/** Settings for {@link UploadManager.uploadFiles} (third argument). */
+/** Settings for {@link StorageManager.uploadFiles} (third argument). */
 export interface BatchOptions {
   /** How many files upload at the same time. Default is 3. */
   concurrency?: number;
@@ -36,7 +36,7 @@ export interface BatchHandleInit {
 }
 
 /**
- * A group of files from {@link UploadManager.uploadFiles}. Use `.on(...)` like a single {@link UploadHandle}, plus `snapshot()` for totals.
+ * A group of files from {@link StorageManager.uploadFiles}. Use `.on(...)` like a single {@link UploadHandle}, plus `snapshot()` for totals.
  */
 export class BatchHandle extends Emitter<BatchHandleEvents> {
   public readonly id: string;

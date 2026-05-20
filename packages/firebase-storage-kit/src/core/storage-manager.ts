@@ -2,29 +2,30 @@ import { BatchHandle, type BatchOptions } from "./batch-handle";
 import { UploadHandle } from "./upload-handle";
 
 import type { StorageProvider } from "../providers/provider";
+import type { FileMetadata } from "../types/metadata";
 import type { UploadOptions } from "../types/provider";
-import type { UploadItem, UploadState } from "../types/upload";
+import type { StorageState, UploadItem } from "../types/upload";
 
 /**
- * Uploads files and tracks each upload or batch.
+ * Manages file uploads and storage queries.
  *
  * You can react in two ways: call `.on(...)` on each {@link UploadHandle} / {@link BatchHandle}, **or** call `subscribe` to get the same lists
- * that {@link UploadManager.getState} returns whenever anything changes (call the returned function to stop listening).
+ * that {@link StorageManager.getState} returns whenever anything changes (call the returned function to stop listening).
  *
  */
-export class UploadManager {
+export class StorageManager {
   private provider: StorageProvider;
   private uploadHandles: UploadHandle[] = [];
   private batches: BatchHandle[] = [];
-  private changeListeners = new Set<(state: UploadState) => void>();
-  private cachedState: UploadState | null = null;
+  private changeListeners = new Set<(state: StorageState) => void>();
+  private cachedState: StorageState | null = null;
 
   constructor(provider: StorageProvider) {
     this.provider = provider;
   }
 
   /** Current `uploads` and `batches` state. */
-  getState = (): UploadState => {
+  getState = (): StorageState => {
     if (this.cachedState === null) {
       this.cachedState = {
         uploads: this.uploadHandles.map((h) => h.upload),
@@ -35,12 +36,32 @@ export class UploadManager {
   };
 
   /** Runs `listener` after each change; returns a function — call it to unsubscribe. */
-  subscribe = (listener: (state: UploadState) => void): (() => void) => {
+  subscribe = (listener: (state: StorageState) => void): (() => void) => {
     this.changeListeners.add(listener);
     return () => {
       this.changeListeners.delete(listener);
     };
   };
+
+  /** Returns `true` if the object exists. Returns `false` only for not-found; other errors are thrown. */
+  exists(path: string): Promise<boolean> {
+    return this.provider.exists(path);
+  }
+
+  /** Returns metadata for the object at `path`. Throws if the object does not exist. */
+  getMetadata(path: string): Promise<FileMetadata> {
+    return this.provider.getMetadata(path);
+  }
+
+  /** Returns a download URL for the object at `path`. */
+  getDownloadURL(path: string): Promise<string> {
+    return this.provider.getDownloadURL(path);
+  }
+
+  /** Deletes the object at `path`. */
+  delete(path: string): Promise<void> {
+    return this.provider.delete(path);
+  }
 
   /** Starts the file upload.`options.path` is the object path in storage (see {@link UploadOptions}).
    *
