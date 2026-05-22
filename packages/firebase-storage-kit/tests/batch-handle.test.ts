@@ -36,11 +36,9 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
       createTestFile("4.txt"),
     ];
 
-    manager.uploadFiles(
-      files,
-      (file) => ({ path: `uploads/${file.name}` }),
-      { concurrency: 2 },
-    );
+    manager.uploadFiles(files, (file) => ({ path: `uploads/${file.name}` }), {
+      concurrency: 2,
+    });
 
     await waitForUploadSettled();
     await waitForMicrotasks();
@@ -67,7 +65,11 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
 
     const manager = new StorageManager(provider);
     const batch = manager.uploadFiles(
-      [createTestFile("1.txt"), createTestFile("2.txt"), createTestFile("3.txt")],
+      [
+        createTestFile("1.txt"),
+        createTestFile("2.txt"),
+        createTestFile("3.txt"),
+      ],
       (file) => ({ path: `uploads/${file.name}` }),
     );
 
@@ -108,7 +110,11 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
 
     const manager = new StorageManager(provider);
     const batch = manager.uploadFiles(
-      [createTestFile("1.txt"), createTestFile("2.txt"), createTestFile("3.txt")],
+      [
+        createTestFile("1.txt"),
+        createTestFile("2.txt"),
+        createTestFile("3.txt"),
+      ],
       (file) => ({ path: `uploads/${file.name}` }),
       { concurrency: 1, continueOnError: false },
     );
@@ -122,7 +128,9 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
 
     expect(onError).toHaveBeenCalled();
     expect(onSuccess).not.toHaveBeenCalled();
-    expect(batch.uploads.some((h) => h.upload.status === "canceled")).toBe(true);
+    expect(batch.uploads.some((h) => h.upload.status === "canceled")).toBe(
+      true,
+    );
   });
 
   it("emits batch progress and per-upload events", async () => {
@@ -160,25 +168,20 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
   });
 
   it("supports batch cancel, pause, and resume", async () => {
-    const pending: Array<{
-      callbacks: {
-        onProgress: (bytesTransferred: number, totalBytes: number) => void;
-        onSuccess: (downloadURL: string) => void;
-      };
-    }> = [];
-
     const { provider } = createMockProvider({
       uploadBehavior: {
         type: "manual",
-        onStart: (_file, _options, callbacks) => {
-          pending.push({ callbacks });
-        },
+        onStart: () => {},
       },
     });
 
     const manager = new StorageManager(provider);
     const batch = manager.uploadFiles(
-      [createTestFile("1.txt"), createTestFile("2.txt"), createTestFile("3.txt")],
+      [
+        createTestFile("1.txt"),
+        createTestFile("2.txt"),
+        createTestFile("3.txt"),
+      ],
       (file) => ({ path: `uploads/${file.name}` }),
       { concurrency: 1 },
     );
