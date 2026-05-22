@@ -24,10 +24,6 @@
     // Some stricter flags (disabled by default)
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noPropertyAccessFromIndexSignature": false,
-
-    // Silence 'baseUrl' deprecation warning (removed in TS 7.0)
-    // Caused by 'tsup' package - maybe move to tsdown later;
-    "ignoreDeprecations": "6.0"
+    "noPropertyAccessFromIndexSignature": false
   }
 }

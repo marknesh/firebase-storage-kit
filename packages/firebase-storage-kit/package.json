@@ -4,7 +4,7 @@
   "description": "Storage manager for Firebase Storage with uploads, progress tracking, batch uploads, and file query helpers.",
   "keywords": [
     "firebase",
-    "firebase-storage",
+    "firebase storage",
     "storage",
     "upload",
     "resumable",
@@ -40,6 +40,8 @@
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {

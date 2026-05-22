@@ -17,7 +17,7 @@
     },
     "packages/firebase-storage-kit": {
       "name": "firebase-storage-kit",
-      "version": "0.0.2",
+      "version": "1.0.0",
       "devDependencies": {
         "firebase": "^12.13.0",
       },
