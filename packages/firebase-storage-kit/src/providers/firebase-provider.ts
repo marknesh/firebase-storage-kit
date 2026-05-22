@@ -8,12 +8,12 @@ import {
   type StorageError,
 } from "firebase/storage";
 
+import type { FileMetadata } from "../types/metadata";
 import type {
   ProviderUploadCallbacks,
   ProviderUploadTask,
   UploadOptions,
 } from "../types/provider";
-import type { FileMetadata } from "../types/metadata";
 import type { StorageProvider } from "./provider";
 
 export class FirebaseStorageProvider implements StorageProvider {

@@ -11,6 +11,7 @@
     "dev": "turbo run dev",
     "clean": "turbo run clean",
     "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
     "changeset": "changeset",
     "version": "changeset version",
     "release": "turbo run build && changeset publish"
