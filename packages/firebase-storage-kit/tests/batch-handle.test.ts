@@ -18,9 +18,9 @@ async function waitForBatchTerminal(
     }, timeoutMs);
 
     const check = () => {
-      const terminal = batch.uploads.every((h) => {
-        const s = h.upload.status;
-        return s === "success" || s === "error" || s === "canceled";
+      const terminal = batch.uploads.every((handle) => {
+        const status = handle.upload.status;
+        return status === "success" || status === "error" || status === "canceled";
       });
       if (terminal) {
         clearTimeout(timeout);
@@ -253,9 +253,9 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
 
     await waitForBatchTerminal(batch);
 
-    const stuck = batch.uploads.filter((h) => {
-      const s = h.upload.status;
-      return s === "uploading" || s === "queued";
+    const stuck = batch.uploads.filter((handle) => {
+      const status = handle.upload.status;
+      return status === "uploading" || status === "queued";
     });
     expect(stuck).toHaveLength(0);
     expect(batch.snapshot().completedCount).toBe(10);
