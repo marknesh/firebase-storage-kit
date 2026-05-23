@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://github.com/marknesh/firebase-storage-kit/blob/main/packages/firebase-storage-kit/README.md
+    about: Read the README for install instructions and usage examples

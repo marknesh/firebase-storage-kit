@@ -1,0 +1,73 @@
+name: Bug report
+description: Report something that isn't working as expected
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please fill in as much as you can — it helps us reproduce and fix the issue faster.
+
+        Want to fix it yourself? See [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+  - type: input
+    id: package-version
+    attributes:
+      label: firebase-storage-kit version
+      description: From your package.json or run `npm ls firebase-storage-kit`
+      placeholder: "1.1.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Browser (Chrome)
+        - Browser (Firefox)
+        - Browser (Safari)
+        - React Native
+        - Node.js
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: firebase-version
+    attributes:
+      label: Firebase SDK version
+      description: The version of the `firebase` package in your project
+      placeholder: "12.13.0"
+    validations:
+      required: true
+
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime / bundler
+      description: e.g. Vite 6, Next.js 15, webpack, Bun
+      placeholder: "Next.js 15 + App Router"
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug and what you observed
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal code snippet or link to a reproduction repo
+      render: ts
+    validations:
+      required: true
