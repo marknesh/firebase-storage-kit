@@ -8,6 +8,31 @@ import {
 } from "./helpers/mock-provider";
 import { createTestFile } from "./helpers/test-file";
 
+async function waitForBatchTerminal(
+  batch: ReturnType<StorageManager["uploadFiles"]>,
+  timeoutMs = 3000,
+): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error("batch did not finish in time"));
+    }, timeoutMs);
+
+    const check = () => {
+      const terminal = batch.uploads.every((h) => {
+        const s = h.upload.status;
+        return s === "success" || s === "error" || s === "canceled";
+      });
+      if (terminal) {
+        clearTimeout(timeout);
+        resolve();
+      }
+    };
+
+    batch.on("change", check);
+    check();
+  });
+}
+
 describe("BatchHandle via StorageManager.uploadFiles", () => {
   it("respects concurrency limits", async () => {
     let inFlight = 0;
@@ -199,5 +224,76 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
     expect(batch.uploads.every((h) => h.upload.status === "canceled")).toBe(
       true,
     );
+  });
+
+  it("completes all 10 uploads without leaving any stuck in uploading", async () => {
+    const { provider } = createMockProvider({
+      uploadBehavior: {
+        type: "manual",
+        onStart: (file, _options, callbacks) => {
+          callbacks.onProgress(0, file.size);
+          queueMicrotask(async () => {
+            callbacks.onProgress(file.size, file.size);
+            await waitForMicrotasks();
+            callbacks.onSuccess(`https://example.com/${file.name}`);
+          });
+        },
+      },
+    });
+
+    const manager = new StorageManager(provider);
+    const files = Array.from({ length: 10 }, (_, i) =>
+      createTestFile(`${i + 1}.txt`),
+    );
+    const batch = manager.uploadFiles(
+      files,
+      (file) => ({ path: `uploads/${file.name}` }),
+      { concurrency: 3 },
+    );
+
+    await waitForBatchTerminal(batch);
+
+    const stuck = batch.uploads.filter((h) => {
+      const s = h.upload.status;
+      return s === "uploading" || s === "queued";
+    });
+    expect(stuck).toHaveLength(0);
+    expect(batch.snapshot().completedCount).toBe(10);
+  });
+
+  it("does not restart canceled queued uploads and leave them stuck uploading", async () => {
+    const { provider, spies } = createMockProvider({
+      uploadBehavior: {
+        type: "manual",
+        onStart: (_file, _options, callbacks) => {
+          queueMicrotask(() => {
+            callbacks.onProgress(1, 1);
+            callbacks.onSuccess("https://example.com/file");
+          });
+        },
+      },
+    });
+
+    const manager = new StorageManager(provider);
+    const files = Array.from({ length: 10 }, (_, i) =>
+      createTestFile(`${i + 1}.txt`),
+    );
+    const batch = manager.uploadFiles(
+      files,
+      (file) => ({ path: `uploads/${file.name}` }),
+      { concurrency: 3 },
+    );
+
+    batch.uploads[8]?.cancel();
+    batch.uploads[9]?.cancel();
+
+    await waitForBatchTerminal(batch);
+
+    expect(batch.uploads[8]?.upload.status).toBe("canceled");
+    expect(batch.uploads[9]?.upload.status).toBe("canceled");
+    expect(
+      batch.uploads.filter((h) => h.upload.status === "success"),
+    ).toHaveLength(8);
+    expect(spies.upload.mock.calls.length).toBe(8);
   });
 });
