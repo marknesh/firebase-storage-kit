@@ -1,5 +1,11 @@
 # firebase-storage-kit
 
+## 1.1.1
+
+### Patch Changes
+
+- [#13](https://github.com/marknesh/firebase-storage-kit/pull/13) [`59abfa2`](https://github.com/marknesh/firebase-storage-kit/commit/59abfa28e47bcac7c3773c59dcf7c54c07998626) Thanks [@marknesh](https://github.com/marknesh)! - Fix batch uploads getting stuck in `uploading` when queued items are canceled. The scheduler now skips non-queued uploads instead of restarting them, and only releases concurrency slots for uploads that were actually started.
+
 ## 1.1.0
 
 ### Minor Changes
