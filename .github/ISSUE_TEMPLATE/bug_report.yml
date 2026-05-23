@@ -7,7 +7,7 @@ body:
       value: |
         Thanks for reporting a bug. Please fill in as much as you can — it helps us reproduce and fix the issue faster.
 
-        Want to fix it yourself? See [CONTRIBUTING.md](../CONTRIBUTING.md).
+        Want to fix it yourself? See [CONTRIBUTING.md](https://github.com/marknesh/firebase-storage-kit/blob/main/.github/CONTRIBUTING.md).
 
   - type: input
     id: package-version
