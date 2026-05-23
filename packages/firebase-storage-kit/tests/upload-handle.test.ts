@@ -7,6 +7,7 @@ function createHandle(upload?: Partial<UploadItem>): UploadHandle {
   const item: UploadItem = {
     id: "upload-1",
     file: new File(["hello"], "hello.txt"),
+    path: "uploads/hello.txt",
     progress: 0,
     bytesTransferred: 0,
     totalBytes: 5,

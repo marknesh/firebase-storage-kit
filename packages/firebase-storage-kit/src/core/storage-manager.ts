@@ -68,7 +68,7 @@ export class StorageManager {
    * @returns An {@link UploadHandle} to control the upload: `pause`, `resume`, `cancel`, and listen for progress with `.on`.
    */
   uploadFile(file: File, options: UploadOptions): UploadHandle {
-    const handle = this.createHandle(file);
+    const handle = this.createHandle(file, { path: options.path });
     this.uploadHandles.push(handle);
     this.notifyChange();
     this.startUpload(handle, options);
@@ -91,12 +91,9 @@ export class StorageManager {
     batchOptions: BatchOptions = {},
   ): BatchHandle {
     const id = crypto.randomUUID();
-    const handles = files.map((file) => this.createHandle(file, id));
-    const optionsByUploadId = new Map<string, UploadOptions>();
-    handles.forEach((h, i) => {
-      const file = files[i];
-      if (!file) return;
-      optionsByUploadId.set(h.upload.id, optionsFor(file, i));
+    const handles = files.map((file, i) => {
+      const options = optionsFor(file, i);
+      return this.createHandle(file, { batchId: id, path: options.path });
     });
 
     this.uploadHandles.push(...handles);
@@ -106,9 +103,7 @@ export class StorageManager {
       uploads: handles,
       options: batchOptions,
       startNext: (handle) => {
-        const opts = optionsByUploadId.get(handle.upload.id);
-        if (!opts) return;
-        this.startUpload(handle, opts);
+        this.startUpload(handle, { path: handle.upload.path });
       },
       onChange: () => this.notifyChange(),
     });
@@ -119,15 +114,19 @@ export class StorageManager {
     return batch;
   }
 
-  private createHandle(file: File, batchId?: string): UploadHandle {
+  private createHandle(
+    file: File,
+    options: { path: string; batchId?: string },
+  ): UploadHandle {
     const upload: UploadItem = {
       id: crypto.randomUUID(),
       file,
+      path: options.path,
       progress: 0,
       bytesTransferred: 0,
       totalBytes: file.size,
       status: "queued",
-      ...(batchId !== undefined ? { batchId } : {}),
+      ...(options.batchId !== undefined ? { batchId: options.batchId } : {}),
     };
     return new UploadHandle(upload, () => this.notifyChange());
   }

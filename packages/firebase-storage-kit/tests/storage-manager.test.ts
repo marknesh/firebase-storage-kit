@@ -19,8 +19,10 @@ describe("StorageManager", () => {
       const handle = manager.uploadFile(file, { path: "uploads/photo.jpg" });
 
       expect(handle.upload.status).toBe("uploading");
+      expect(handle.upload.path).toBe("uploads/photo.jpg");
       expect(manager.getState().uploads).toHaveLength(1);
       expect(manager.getState().uploads[0]?.id).toBe(handle.upload.id);
+      expect(manager.getState().uploads[0]?.path).toBe("uploads/photo.jpg");
 
       await waitForUploadSettled();
 
@@ -56,6 +58,11 @@ describe("StorageManager", () => {
       expect(
         manager.getState().uploads.every((u) => u.batchId === batch.id),
       ).toBe(true);
+      expect(manager.getState().uploads.map((u) => u.path)).toEqual([
+        "uploads/a.txt",
+        "uploads/b.txt",
+        "uploads/c.txt",
+      ]);
 
       await waitForUploadSettled();
 
