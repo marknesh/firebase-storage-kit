@@ -49,6 +49,8 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
 
   private running = 0;
   private nextIdx = 0;
+  /** Indices that were started via {@link fillSlots} and still hold a concurrency slot. */
+  private activeSlots = new Set<number>();
   private settledCount = 0;
   private succeededCount = 0;
   private failedCount = 0;
@@ -164,8 +166,10 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
       this.running < this.concurrency &&
       this.nextIdx < this.uploads.length
     ) {
-      const handle = this.uploads[this.nextIdx++];
-      if (!handle) continue;
+      const idx = this.nextIdx++;
+      const handle = this.uploads[idx];
+      if (!handle || handle.upload.status !== "queued") continue;
+      this.activeSlots.add(idx);
       this.running++;
       this.startNext(handle);
     }
@@ -184,7 +188,9 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
     kind: "success" | "error" | "canceled",
   ): void {
     this.updateAggregate(idx, upload);
-    this.running = Math.max(0, this.running - 1);
+    if (this.activeSlots.delete(idx)) {
+      this.running = Math.max(0, this.running - 1);
+    }
     this.settledCount++;
 
     if (kind === "success") {
