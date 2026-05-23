@@ -7,7 +7,7 @@ body:
       value: |
         Thanks for suggesting a feature. Describe the problem you're trying to solve and how you'd like the API to work.
 
-        Breaking changes require a **major** changeset when implemented. See [CONTRIBUTING.md](../CONTRIBUTING.md).
+        Breaking changes require a **major** changeset when implemented. See [CONTRIBUTING.md](https://github.com/marknesh/firebase-storage-kit/blob/main/.github/CONTRIBUTING.md).
 
   - type: textarea
     id: problem
