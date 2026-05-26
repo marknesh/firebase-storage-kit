@@ -7,6 +7,7 @@ export interface StorageState {
 export type UploadStatus =
   | "queued"
   | "uploading"
+  | "retrying"
   | "paused"
   | "success"
   | "error"
@@ -22,6 +23,7 @@ export interface UploadItem {
   status: UploadStatus;
   downloadURL?: string;
   error?: Error;
+  retryAttempt?: number;
   batchId?: string;
 }
 
