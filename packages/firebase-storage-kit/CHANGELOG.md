@@ -1,5 +1,11 @@
 # firebase-storage-kit
 
+## 1.2.1
+
+### Patch Changes
+
+- [#23](https://github.com/marknesh/firebase-storage-kit/pull/23) [`4f01202`](https://github.com/marknesh/firebase-storage-kit/commit/4f01202090b77c93bf36219b66026d0181bd19b8) Thanks [@marknesh](https://github.com/marknesh)! - Add `uploadRetry` event to `BatchHandle`, forwarding child upload retry events with the same `UploadRetryEvent` payload as single-file `UploadHandle` `retry`.
+
 ## 1.2.0
 
 ### Minor Changes
