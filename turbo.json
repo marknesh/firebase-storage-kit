@@ -22,6 +22,11 @@
 
     "test": {
       "cache": false
+    },
+
+    "//#check": {},
+    "//#fix": {
+      "cache": false
     }
   }
 }
