@@ -1,11 +1,15 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
 
 import { FirebaseStorageProvider } from "../src/providers/firebase-provider";
+import {
+  createTestFirebaseStorage,
+  waitForMicrotasks,
+} from "./helpers/mock-provider";
 
-type UploadSnapshot = {
+interface UploadSnapshot {
   bytesTransferred: number;
   totalBytes: number;
-};
+}
 
 type ProgressHandler = (snapshot: UploadSnapshot) => void;
 
@@ -13,34 +17,42 @@ type UploadTaskOnHandler = (
   event: string,
   progress: ProgressHandler,
   error?: (err: Error) => void,
-  complete?: () => void | Promise<void>,
+  complete?: () => void | Promise<void>
 ) => void;
 
 const firebaseMocks = {
-  deleteObject: mock(async () => {}),
-  getDownloadURL: mock(async () => "https://cdn.example/file.jpg"),
-  getMetadata: mock(async () => ({
-    size: 2048,
-    contentType: "image/jpeg",
-    timeCreated: "2024-01-01T00:00:00.000Z",
-    updated: "2024-01-02T00:00:00.000Z",
-    customMetadata: { owner: "test" },
-  })),
+  deleteObject: mock(async () => {
+    await Promise.resolve();
+  }),
+  getDownloadURL: mock(async () => {
+    await Promise.resolve();
+    return "https://cdn.example/file.jpg";
+  }),
+  getMetadata: mock(async () => {
+    await Promise.resolve();
+    return {
+      contentType: "image/jpeg",
+      customMetadata: { owner: "test" },
+      size: 2048,
+      timeCreated: "2024-01-01T00:00:00.000Z",
+      updated: "2024-01-02T00:00:00.000Z",
+    };
+  }),
   ref: mock((_storage: unknown, path: string) => ({ path })),
   uploadBytesResumable: mock(() => ({
+    cancel: mock(() => {}),
     on: mock<UploadTaskOnHandler>((_event, progress, _error, complete) => {
       progress({ bytesTransferred: 10, totalBytes: 100 });
       if (complete) {
         void complete();
       }
     }),
-    cancel: mock(() => {}),
     pause: mock(() => {}),
     resume: mock(() => {}),
   })),
 };
 
-mock.module("firebase/storage", () => ({
+void mock.module("firebase/storage", () => ({
   deleteObject: firebaseMocks.deleteObject,
   getDownloadURL: firebaseMocks.getDownloadURL,
   getMetadata: firebaseMocks.getMetadata,
@@ -57,33 +69,40 @@ describe("FirebaseStorageProvider", () => {
     firebaseMocks.uploadBytesResumable.mockClear();
   });
 
-  const storage = {} as import("firebase/storage").FirebaseStorage;
+  const storage = createTestFirebaseStorage();
   const provider = new FirebaseStorageProvider(storage);
 
   describe("exists", () => {
     it("returns true when metadata exists", async () => {
-      await expect(provider.exists("uploads/photo.jpg")).resolves.toBe(true);
+      expect(await provider.exists("uploads/photo.jpg")).toBe(true);
       expect(firebaseMocks.getMetadata).toHaveBeenCalled();
     });
 
     it("returns false for object-not-found", async () => {
       firebaseMocks.getMetadata.mockImplementationOnce(async () => {
-        const error = new Error("not found") as Error & { code: string };
-        error.code = "storage/object-not-found";
+        await Promise.resolve();
+        const error = Object.assign(new Error("not found"), {
+          code: "storage/object-not-found",
+        });
         throw error;
       });
 
-      await expect(provider.exists("uploads/missing.jpg")).resolves.toBe(false);
+      expect(await provider.exists("uploads/missing.jpg")).toBe(false);
     });
 
     it("rethrows other errors", async () => {
       firebaseMocks.getMetadata.mockImplementationOnce(async () => {
+        await Promise.resolve();
         throw new Error("permission denied");
       });
 
-      await expect(provider.exists("uploads/forbidden.jpg")).rejects.toThrow(
-        "permission denied",
-      );
+      let caught: unknown;
+      try {
+        await provider.exists("uploads/forbidden.jpg");
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toEqual(new Error("permission denied"));
     });
   });
 
@@ -93,7 +112,7 @@ describe("FirebaseStorageProvider", () => {
 
       expect(firebaseMocks.ref).toHaveBeenCalledWith(
         storage,
-        "uploads/old.jpg",
+        "uploads/old.jpg"
       );
       expect(firebaseMocks.deleteObject).toHaveBeenCalledWith({
         path: "uploads/old.jpg",
@@ -106,12 +125,12 @@ describe("FirebaseStorageProvider", () => {
       const metadata = await provider.getMetadata("uploads/photo.jpg");
 
       expect(metadata).toEqual({
-        path: "uploads/photo.jpg",
-        size: 2048,
         contentType: "image/jpeg",
         createdAt: new Date("2024-01-01T00:00:00.000Z"),
-        updatedAt: new Date("2024-01-02T00:00:00.000Z"),
         customMetadata: { owner: "test" },
+        path: "uploads/photo.jpg",
+        size: 2048,
+        updatedAt: new Date("2024-01-02T00:00:00.000Z"),
       });
     });
   });
@@ -126,32 +145,34 @@ describe("FirebaseStorageProvider", () => {
       const task = provider.upload(
         file,
         { path: "uploads/hello.txt" },
-        { onProgress, onSuccess, onError },
+        { onError, onProgress, onSuccess }
       );
 
-      await Promise.resolve();
+      await waitForMicrotasks();
+      await waitForMicrotasks();
 
       expect(onProgress).toHaveBeenCalledWith(10, 100);
       expect(onSuccess).toHaveBeenCalledWith("https://cdn.example/file.jpg");
       expect(onError).not.toHaveBeenCalled();
-      expect(task.cancel).toBeDefined();
-      expect(task.pause).toBeDefined();
-      expect(task.resume).toBeDefined();
+      expect(typeof task.cancel).toBe("function");
+      expect(typeof task.pause).toBe("function");
+      expect(typeof task.resume).toBe("function");
     });
 
     it("calls onError when getDownloadURL fails after upload completes", async () => {
       firebaseMocks.uploadBytesResumable.mockImplementationOnce(() => ({
+        cancel: mock(() => {}),
         on: mock<UploadTaskOnHandler>((_event, progress, _error, complete) => {
           progress({ bytesTransferred: 100, totalBytes: 100 });
           if (complete) {
             void complete();
           }
         }),
-        cancel: mock(() => {}),
         pause: mock(() => {}),
         resume: mock(() => {}),
       }));
       firebaseMocks.getDownloadURL.mockImplementationOnce(async () => {
+        await Promise.resolve();
         throw new Error("url failed");
       });
 
@@ -160,13 +181,14 @@ describe("FirebaseStorageProvider", () => {
         new File(["hello"], "hello.txt"),
         { path: "uploads/hello.txt" },
         {
+          onError,
           onProgress: mock(() => {}),
           onSuccess: mock(() => {}),
-          onError,
-        },
+        }
       );
 
-      await Promise.resolve();
+      await waitForMicrotasks();
+      await waitForMicrotasks();
 
       expect(onError).toHaveBeenCalledWith(expect.any(Error));
     });
@@ -175,8 +197,8 @@ describe("FirebaseStorageProvider", () => {
       const cancel = mock(() => {});
 
       firebaseMocks.uploadBytesResumable.mockImplementationOnce(() => ({
-        on: mock(() => {}),
         cancel,
+        on: mock(() => {}),
         pause: mock(() => {}),
         resume: mock(() => {}),
       }));
@@ -185,10 +207,10 @@ describe("FirebaseStorageProvider", () => {
         new File(["hello"], "hello.txt"),
         { path: "uploads/hello.txt" },
         {
+          onError: mock(() => {}),
           onProgress: mock(() => {}),
           onSuccess: mock(() => {}),
-          onError: mock(() => {}),
-        },
+        }
       );
 
       task.cancel();
@@ -202,14 +224,14 @@ describe("FirebaseStorageProvider", () => {
       provider.upload(
         file,
         {
-          path: "uploads/hello.txt",
           customMetadata: { owner: "user-123", source: "web" },
+          path: "uploads/hello.txt",
         },
         {
+          onError: mock(() => {}),
           onProgress: mock(() => {}),
           onSuccess: mock(() => {}),
-          onError: mock(() => {}),
-        },
+        }
       );
 
       await Promise.resolve();
@@ -219,7 +241,7 @@ describe("FirebaseStorageProvider", () => {
         file,
         {
           customMetadata: { owner: "user-123", source: "web" },
-        },
+        }
       );
     });
 
@@ -230,10 +252,10 @@ describe("FirebaseStorageProvider", () => {
         file,
         { path: "uploads/hello.txt" },
         {
+          onError: mock(() => {}),
           onProgress: mock(() => {}),
           onSuccess: mock(() => {}),
-          onError: mock(() => {}),
-        },
+        }
       );
 
       await Promise.resolve();
@@ -241,7 +263,7 @@ describe("FirebaseStorageProvider", () => {
       expect(firebaseMocks.uploadBytesResumable).toHaveBeenCalledWith(
         { path: "uploads/hello.txt" },
         file,
-        undefined,
+        undefined
       );
     });
 
@@ -250,8 +272,8 @@ describe("FirebaseStorageProvider", () => {
       const resume = mock(() => {});
 
       firebaseMocks.uploadBytesResumable.mockImplementationOnce(() => ({
-        on: mock(() => {}),
         cancel: mock(() => {}),
+        on: mock(() => {}),
         pause,
         resume,
       }));
@@ -260,10 +282,10 @@ describe("FirebaseStorageProvider", () => {
         new File(["hello"], "hello.txt"),
         { path: "uploads/hello.txt" },
         {
+          onError: mock(() => {}),
           onProgress: mock(() => {}),
           onSuccess: mock(() => {}),
-          onError: mock(() => {}),
-        },
+        }
       );
 
       task.pause?.();

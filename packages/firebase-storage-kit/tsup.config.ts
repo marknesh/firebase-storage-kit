@@ -1,16 +1,16 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["./src/index.ts"],
-  format: ["esm"],
+  clean: true,
   dts: {
     compilerOptions: {
-      stripInternal: true,
       ignoreDeprecations: "6.0",
+      stripInternal: true,
     },
   },
-  clean: true,
-  treeshake: true,
-  splitting: true,
+  entry: ["./src/index.ts"],
+  format: ["esm"],
   sourcemap: true,
+  splitting: true,
+  treeshake: true,
 });

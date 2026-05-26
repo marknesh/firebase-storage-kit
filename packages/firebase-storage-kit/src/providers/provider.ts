@@ -1,9 +1,9 @@
+import type { FileMetadata } from "../types/metadata";
 import type {
   ProviderUploadCallbacks,
   ProviderUploadTask,
   UploadOptions,
 } from "../types/provider";
-import type { FileMetadata } from "../types/metadata";
 
 export interface StorageProvider {
   upload(
@@ -11,7 +11,7 @@ export interface StorageProvider {
 
     options: UploadOptions,
 
-    callbacks: ProviderUploadCallbacks,
+    callbacks: ProviderUploadCallbacks
   ): ProviderUploadTask;
 
   exists(path: string): Promise<boolean>;

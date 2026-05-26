@@ -1,7 +1,6 @@
-import { Emitter } from "./emitter";
-
 import type { ProviderUploadTask } from "../types/provider";
 import type { UploadItem, UploadStatus } from "../types/upload";
+import { Emitter } from "./emitter";
 
 export interface UploadRetryEvent {
   upload: UploadItem;
@@ -24,14 +23,14 @@ export interface UploadControlHooks {
   resumeDuringRetry?: () => void;
 }
 
-export type UploadHandleEvents = {
+export interface UploadHandleEvents extends Record<string, unknown> {
   progress: UploadItem;
   success: UploadItem;
   error: UploadItem;
   canceled: UploadItem;
   statusChange: UploadItem;
   retry: UploadRetryEvent;
-};
+}
 
 /** Controls file upload and tracks its progress.
  *
@@ -43,7 +42,7 @@ export class UploadHandle extends Emitter<UploadHandleEvents> {
   public readonly upload: UploadItem;
 
   private task: ProviderUploadTask | null = null;
-  private onChange: () => void;
+  private readonly onChange: () => void;
   private terminated = false;
   private controlHooks: UploadControlHooks | null = null;
   private pausedDuringRetry = false;
@@ -71,14 +70,18 @@ export class UploadHandle extends Emitter<UploadHandleEvents> {
 
   /** @internal */
   _setStatus(status: UploadStatus): void {
-    if (this.upload.status === status) return;
+    if (this.upload.status === status) {
+      return;
+    }
     this.upload.status = status;
     this.emit("statusChange", this.upload);
   }
 
   /** @internal */
   _reportProgress(bytesTransferred: number, totalBytes: number): void {
-    if (this.terminated) return;
+    if (this.terminated) {
+      return;
+    }
     this.upload.bytesTransferred = bytesTransferred;
     this.upload.totalBytes = totalBytes;
     this.upload.progress =
@@ -92,7 +95,9 @@ export class UploadHandle extends Emitter<UploadHandleEvents> {
 
   /** @internal */
   _prepareRetryAttempt(attempt: number): void {
-    if (this.terminated) return;
+    if (this.terminated) {
+      return;
+    }
     this.upload.retryAttempt = attempt;
     this.upload.bytesTransferred = 0;
     this.upload.progress = 0;
@@ -104,24 +109,28 @@ export class UploadHandle extends Emitter<UploadHandleEvents> {
 
   /** @internal */
   _enterRetryBackoff(details: UploadRetryBackoffDetails): void {
-    if (this.terminated) return;
+    if (this.terminated) {
+      return;
+    }
     this.upload.retryAttempt = details.attempt;
     this.upload.error = details.error;
     this.task = null;
     this._setStatus("retrying");
     this.emit("retry", {
-      upload: this.upload,
-      error: details.error,
       attempt: details.attempt,
-      maxAttempts: details.maxAttempts,
       delayMs: details.delayMs,
+      error: details.error,
+      maxAttempts: details.maxAttempts,
+      upload: this.upload,
     });
     this.onChange();
   }
 
   /** @internal */
   _reportSuccess(downloadURL: string): void {
-    if (this.terminated) return;
+    if (this.terminated) {
+      return;
+    }
     this.terminated = true;
     this.upload.downloadURL = downloadURL;
     this.upload.progress = 100;
@@ -133,7 +142,9 @@ export class UploadHandle extends Emitter<UploadHandleEvents> {
 
   /** @internal */
   _reportError(error: Error): void {
-    if (this.terminated) return;
+    if (this.terminated) {
+      return;
+    }
     this.terminated = true;
     this.upload.error = error;
     this._clearControlHooks();
@@ -143,7 +154,9 @@ export class UploadHandle extends Emitter<UploadHandleEvents> {
   }
 
   cancel(): void {
-    if (this.terminated) return;
+    if (this.terminated) {
+      return;
+    }
     this.terminated = true;
     this.controlHooks?.abort();
     this.task?.cancel();
@@ -154,7 +167,9 @@ export class UploadHandle extends Emitter<UploadHandleEvents> {
   }
 
   pause(): void {
-    if (this.terminated) return;
+    if (this.terminated) {
+      return;
+    }
     if (this.upload.status === "uploading") {
       this.task?.pause?.();
       this._setStatus("paused");
@@ -170,8 +185,12 @@ export class UploadHandle extends Emitter<UploadHandleEvents> {
   }
 
   resume(): void {
-    if (this.terminated) return;
-    if (this.upload.status !== "paused") return;
+    if (this.terminated) {
+      return;
+    }
+    if (this.upload.status !== "paused") {
+      return;
+    }
 
     if (this.pausedDuringRetry) {
       this.pausedDuringRetry = false;

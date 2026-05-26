@@ -1,5 +1,7 @@
 import { mock } from "bun:test";
 
+import type { FirebaseStorage } from "firebase/storage";
+
 import type { StorageProvider } from "../../src/providers/provider";
 import type { FileMetadata } from "../../src/types/metadata";
 import type {
@@ -12,7 +14,7 @@ export type UploadBehavior =
   | {
       type: "success";
       downloadURL?: string;
-      progress?: Array<{ bytesTransferred: number; totalBytes: number }>;
+      progress?: { bytesTransferred: number; totalBytes: number }[];
       async?: boolean;
     }
   | { type: "error"; error?: Error; async?: boolean }
@@ -28,7 +30,7 @@ export type UploadBehavior =
         file: File,
         options: UploadOptions,
         callbacks: ProviderUploadCallbacks,
-        task: ProviderUploadTask,
+        task: ProviderUploadTask
       ) => void;
     };
 
@@ -50,7 +52,7 @@ export interface MockProviderSpies {
       (
         file: File,
         options: UploadOptions,
-        callbacks: ProviderUploadCallbacks,
+        callbacks: ProviderUploadCallbacks
       ) => ProviderUploadTask
     >
   >;
@@ -63,21 +65,21 @@ export interface MockProviderResult {
 }
 
 const defaultMetadata = (path: string): FileMetadata => ({
-  path,
-  size: 1024,
   contentType: "application/octet-stream",
   createdAt: new Date("2024-01-01T00:00:00Z"),
+  path,
+  size: 1024,
   updatedAt: new Date("2024-01-02T00:00:00Z"),
 });
 
-function runUploadBehavior(
+const runUploadBehavior = (
   behavior: UploadBehavior,
   file: File,
   options: UploadOptions,
   callbacks: ProviderUploadCallbacks,
   task: ProviderUploadTask,
-  failCounts?: Map<string, number>,
-): void {
+  failCounts?: Map<string, number>
+): void => {
   if (behavior.type === "manual") {
     behavior.onStart?.(file, options, callbacks, task);
     return;
@@ -117,60 +119,77 @@ function runUploadBehavior(
     }
 
     const downloadURL =
-      behavior.type === "success" && behavior.downloadURL
+      behavior.type === "success" && behavior.downloadURL !== undefined
         ? behavior.downloadURL
         : `https://example.com/${options.path}`;
 
     callbacks.onSuccess(downloadURL);
   };
 
-  if ("async" in behavior && behavior.async) {
+  if ("async" in behavior && behavior.async === true) {
     queueMicrotask(run);
   } else {
     run();
   }
-}
+};
 
-export function createMockProvider(
-  options: MockProviderOptions = {},
-): MockProviderResult {
+/** Default async stub when a test does not override provider behavior. */
+const doNothingAsync = async (): Promise<void> => {
+  await Promise.resolve();
+};
+
+/** Default cancel/pause/resume stub — present on the task, but does nothing. */
+const doNothing = (): void => {
+  void 0;
+};
+
+/** Minimal Firebase Storage stub; `firebase/storage` is fully mocked in provider tests. */
+export const createTestFirebaseStorage = (): FirebaseStorage =>
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- ref() is mocked; only storage identity matters
+  ({
+    app: {},
+    maxOperationRetryTime: 600_000,
+    maxUploadRetryTime: 600_000,
+  }) as unknown as FirebaseStorage;
+
+export const createMockProvider = (
+  options: MockProviderOptions = {}
+): MockProviderResult => {
   const tasks: ProviderUploadTask[] = [];
   const failCounts = new Map<string, number>();
   const uploadBehavior: UploadBehavior = options.uploadBehavior ?? {
-    type: "success",
     async: true,
+    type: "success",
   };
 
   const spies: MockProviderSpies = {
+    delete: mock(options.delete ?? doNothingAsync),
     exists: mock(
       options.exists ??
         (async () => {
+          await Promise.resolve();
           return true;
-        }),
-    ),
-    getMetadata: mock(
-      options.getMetadata ??
-        (async (path) => {
-          return defaultMetadata(path);
-        }),
+        })
     ),
     getDownloadURL: mock(
       options.getDownloadURL ??
         (async (path) => {
+          await Promise.resolve();
           return `https://example.com/${path}`;
-        }),
+        })
     ),
-    delete: mock(
-      options.delete ??
-        (async () => {
-          return;
-        }),
+    getMetadata: mock(
+      options.getMetadata ??
+        (async (path) => {
+          await Promise.resolve();
+          return defaultMetadata(path);
+        })
     ),
     upload: mock((file, uploadOptions, callbacks) => {
       const task: ProviderUploadTask = {
-        cancel: mock(() => {}),
-        pause: mock(() => {}),
-        resume: mock(() => {}),
+        cancel: mock(doNothing),
+        pause: mock(doNothing),
+        resume: mock(doNothing),
       };
       tasks.push(task);
       runUploadBehavior(
@@ -179,30 +198,32 @@ export function createMockProvider(
         uploadOptions,
         callbacks,
         task,
-        failCounts,
+        failCounts
       );
       return task;
     }),
   };
 
   const provider: StorageProvider = {
-    exists: spies.exists,
-    getMetadata: spies.getMetadata,
-    getDownloadURL: spies.getDownloadURL,
     delete: spies.delete,
+    exists: spies.exists,
+    getDownloadURL: spies.getDownloadURL,
+    getMetadata: spies.getMetadata,
     upload: spies.upload,
   };
 
   return { provider, spies, tasks };
-}
+};
 
-export function waitForMicrotasks(): Promise<void> {
-  return new Promise((resolve) => {
-    queueMicrotask(resolve);
-  });
-}
+export const waitForMicrotasks = async (): Promise<void> => {
+  await Bun.sleep(0);
+};
 
-export async function waitForUploadSettled(): Promise<void> {
+export const delay = async (ms: number): Promise<void> => {
+  await Bun.sleep(ms);
+};
+
+export const waitForUploadSettled = async (): Promise<void> => {
   await waitForMicrotasks();
   await waitForMicrotasks();
-}
+};

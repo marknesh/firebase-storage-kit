@@ -3,19 +3,22 @@ import { describe, expect, it, mock } from "bun:test";
 import { UploadHandle } from "../src/core/upload-handle";
 import type { UploadItem } from "../src/types/upload";
 
-function createHandle(upload?: Partial<UploadItem>): UploadHandle {
+const createHandle = (upload?: Partial<UploadItem>): UploadHandle => {
   const item: UploadItem = {
-    id: "upload-1",
+    bytesTransferred: 0,
     file: new File(["hello"], "hello.txt"),
+    id: "upload-1",
     path: "uploads/hello.txt",
     progress: 0,
-    bytesTransferred: 0,
-    totalBytes: 5,
     status: "queued",
+    totalBytes: 5,
     ...upload,
   };
-  return new UploadHandle(item, mock(() => {}));
-}
+  return new UploadHandle(
+    item,
+    mock(() => {})
+  );
+};
 
 describe("UploadHandle", () => {
   describe("progress", () => {

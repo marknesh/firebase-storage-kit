@@ -9,10 +9,10 @@ export interface ResolvedRetryOptions {
 }
 
 export const DEFAULT_RETRY_OPTIONS: ResolvedRetryOptions = {
-  maxRetries: 3,
   initialDelayMs: 1000,
-  maxDelayMs: 30000,
   jitter: true,
+  maxDelayMs: 30_000,
+  maxRetries: 3,
 };
 
 const NON_RETRYABLE_CODES = new Set([
@@ -44,51 +44,67 @@ const RETRYABLE_CODES = new Set([
 ]);
 
 /** Resolves upload retry settings. Returns `null` when retries are disabled. */
-export function resolveRetryOptions(
-  retry?: RetryOptions | false,
-): ResolvedRetryOptions | null {
-  if (retry === false) return null;
+export const resolveRetryOptions = (
+  retry?: RetryOptions | false
+): ResolvedRetryOptions | null => {
+  if (retry === false) {
+    return null;
+  }
   return {
     ...DEFAULT_RETRY_OPTIONS,
     ...retry,
   };
-}
+};
+
+const hasStorageErrorCode = (error: Error): error is Error & { code: string } =>
+  "code" in error && typeof error.code === "string";
 
 /** Reads a Firebase-style `code` from an error without importing Firebase types. */
-export function getStorageErrorCode(error: Error): string | undefined {
-  return (error as { code?: string }).code;
-}
+export const getStorageErrorCode = (error: Error): string | undefined => {
+  if (!hasStorageErrorCode(error)) {
+    return undefined;
+  }
+  return error.code;
+};
 
 /** Whether an upload error should trigger another attempt. */
-export function isRetryableStorageError(
+export const isRetryableStorageError = (
   error: Error,
-  options: ResolvedRetryOptions | null,
-): boolean {
-  if (!options) return false;
+  options: ResolvedRetryOptions | null
+): boolean => {
+  if (!options) {
+    return false;
+  }
 
   if (options.isRetryable) {
     return options.isRetryable(error);
   }
 
   const code = getStorageErrorCode(error);
-  if (code) {
-    if (NON_RETRYABLE_CODES.has(code)) return false;
-    if (RETRYABLE_CODES.has(code)) return true;
+  if (code !== undefined) {
+    if (NON_RETRYABLE_CODES.has(code)) {
+      return false;
+    }
+    if (RETRYABLE_CODES.has(code)) {
+      return true;
+    }
     return false;
   }
 
   return true;
-}
+};
 
 /** Computes backoff delay after a failed attempt (1-based). */
-export function computeRetryDelay(
+export const computeRetryDelay = (
   failedAttempt: number,
-  options: ResolvedRetryOptions,
-): number {
+  options: ResolvedRetryOptions
+): number => {
   const base = Math.min(
     options.maxDelayMs,
-    options.initialDelayMs * 2 ** (failedAttempt - 1),
+    options.initialDelayMs * 2 ** (failedAttempt - 1)
   );
-  if (!options.jitter) return base;
+  if (!options.jitter) {
+    return base;
+  }
   return Math.round(base * (0.5 + Math.random() * 0.5));
-}
+};
