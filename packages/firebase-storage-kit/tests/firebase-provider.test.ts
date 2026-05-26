@@ -196,6 +196,55 @@ describe("FirebaseStorageProvider", () => {
       expect(cancel).toHaveBeenCalled();
     });
 
+    it("passes customMetadata to uploadBytesResumable", async () => {
+      const file = new File(["hello"], "hello.txt");
+
+      provider.upload(
+        file,
+        {
+          path: "uploads/hello.txt",
+          customMetadata: { owner: "user-123", source: "web" },
+        },
+        {
+          onProgress: mock(() => {}),
+          onSuccess: mock(() => {}),
+          onError: mock(() => {}),
+        },
+      );
+
+      await Promise.resolve();
+
+      expect(firebaseMocks.uploadBytesResumable).toHaveBeenCalledWith(
+        { path: "uploads/hello.txt" },
+        file,
+        {
+          customMetadata: { owner: "user-123", source: "web" },
+        },
+      );
+    });
+
+    it("omits metadata when customMetadata is not provided", async () => {
+      const file = new File(["hello"], "hello.txt");
+
+      provider.upload(
+        file,
+        { path: "uploads/hello.txt" },
+        {
+          onProgress: mock(() => {}),
+          onSuccess: mock(() => {}),
+          onError: mock(() => {}),
+        },
+      );
+
+      await Promise.resolve();
+
+      expect(firebaseMocks.uploadBytesResumable).toHaveBeenCalledWith(
+        { path: "uploads/hello.txt" },
+        file,
+        undefined,
+      );
+    });
+
     it("delegates pause and resume to the firebase task", () => {
       const pause = mock(() => {});
       const resume = mock(() => {});
