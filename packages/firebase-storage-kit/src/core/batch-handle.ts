@@ -1,15 +1,16 @@
 import type { UploadBatch, UploadItem } from "../types/upload";
 import { Emitter } from "./emitter";
-import type { UploadHandle } from "./upload-handle";
+import type { UploadHandle, UploadRetryEvent } from "./upload-handle";
 
 /**
  * Events on a batch from {@link StorageManager.uploadFiles}. `progress` / `change` carry a {@link UploadBatch} snapshot.
- * `uploadSuccess` and `uploadError` fire once per child. When all children are done: `success` (normal end) or `error` (only if `continueOnError` was `false` and one failed).
+ * `uploadSuccess`, `uploadError`, and `uploadRetry` fire once per child (retry can fire multiple times per child). When all children are done: `success` (normal end) or `error` (only if `continueOnError` was `false` and one failed).
  */
 export type BatchHandleEvents = {
   progress: UploadBatch;
   uploadSuccess: UploadItem;
   uploadError: UploadItem;
+  uploadRetry: UploadRetryEvent;
   success: UploadBatch;
   error: UploadBatch;
   change: UploadBatch;
@@ -92,10 +93,17 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
     }
 
     this.uploads.forEach((child, idx) => {
-      child.on("progress", (u) => this.handleChildProgress(idx, u));
-      child.on("success", (u) => this.handleChildSettled(idx, u, "success"));
-      child.on("error", (u) => this.handleChildSettled(idx, u, "error"));
-      child.on("canceled", (u) => this.handleChildSettled(idx, u, "canceled"));
+      child.on("progress", (upload) => this.handleChildProgress(idx, upload));
+      child.on("retry", (retryEvent) => this.handleChildRetry(idx, retryEvent));
+      child.on("success", (upload) =>
+        this.handleChildSettled(idx, upload, "success"),
+      );
+      child.on("error", (upload) =>
+        this.handleChildSettled(idx, upload, "error"),
+      );
+      child.on("canceled", (upload) =>
+        this.handleChildSettled(idx, upload, "canceled"),
+      );
     });
   }
 
@@ -186,6 +194,13 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
     this.updateAggregate(idx, upload);
     const snap = this.snapshot();
     this.emit("progress", snap);
+    this.emit("change", snap);
+  }
+
+  private handleChildRetry(idx: number, event: UploadRetryEvent): void {
+    this.updateAggregate(idx, event.upload);
+    this.emit("uploadRetry", event);
+    const snap = this.snapshot();
     this.emit("change", snap);
   }
 
