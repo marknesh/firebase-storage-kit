@@ -81,8 +81,8 @@ Docs-only or internal refactors that don't affect the published package do not n
 
 ## Code of conduct
 
-This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md). By participating, you agree to uphold it.
+This project follows the [Contributor Covenant](/.github/CODE_OF_CONDUCT.md). By participating, you agree to uphold it.
 
 ## Questions
 
-Open an [issue](https://github.com/marknesh/firebase-storage-kit/issues) for bugs or feature requests. For usage help, see the [README](../packages/firebase-storage-kit/README.md).
+Open an [issue](https://github.com/marknesh/firebase-storage-kit/issues) for bugs or feature requests. For usage help, see the [README](/packages/firebase-storage-kit/README.md).
