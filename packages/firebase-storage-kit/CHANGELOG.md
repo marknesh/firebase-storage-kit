@@ -1,5 +1,11 @@
 # firebase-storage-kit
 
+## 1.2.0
+
+### Minor Changes
+
+- [#20](https://github.com/marknesh/firebase-storage-kit/pull/20) [`2f8188c`](https://github.com/marknesh/firebase-storage-kit/commit/2f8188c23b295c671ed0c5233a3df617db7afdf0) Thanks [@marknesh](https://github.com/marknesh)! - Add automatic upload retries with exponential backoff and jitter. Uploads retry transient failures by default (3 retries); pass `retry: false` to disable or customize via `retry: { maxRetries, initialDelayMs, maxDelayMs, jitter, isRetryable }`. Upload handles emit a `retry` event, and upload status now includes `retrying`.
+
 ## 1.1.1
 
 ### Patch Changes
