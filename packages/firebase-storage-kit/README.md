@@ -67,7 +67,7 @@ Uploads retry transient failures automatically (3 retries by default, exponentia
 ```ts
 const handle = manager.uploadFile(file, {
   path: `uploads/${file.name}`,
-  retry: { maxRetries: 5, initialDelayMs: 500 },
+  retry: { maxRetries: 5, initialDelayMs: 700 },
 });
 
 handle.on("retry", ({ attempt, maxAttempts, delayMs, error }) => {
