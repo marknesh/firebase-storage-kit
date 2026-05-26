@@ -166,6 +166,48 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
     );
   });
 
+  it("emits uploadRetry when a child upload retries", async () => {
+    const { provider } = createMockProvider({
+      uploadBehavior: {
+        type: "failThenSucceed",
+        failures: 1,
+        error: Object.assign(new Error("transient"), {
+          code: "storage/retry-limit-exceeded",
+        }),
+        async: true,
+      },
+    });
+
+    const manager = new StorageManager(provider);
+    const batch = manager.uploadFiles(
+      [createTestFile("1.txt")],
+      () => ({
+        path: "uploads/1.txt",
+        retry: { maxRetries: 1, initialDelayMs: 10, jitter: false },
+      }),
+      { concurrency: 1 },
+    );
+
+    const onUploadRetry = mock(() => {});
+    batch.on("uploadRetry", onUploadRetry);
+
+    await waitForMicrotasks();
+    await waitForMicrotasks();
+
+    expect(onUploadRetry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attempt: 2,
+        maxAttempts: 2,
+        delayMs: 10,
+      }),
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await waitForMicrotasks();
+
+    expect(batch.snapshot().completedCount).toBe(1);
+  });
+
   it("emits batch progress and per-upload events", async () => {
     const { provider } = createMockProvider({
       uploadBehavior: {
