@@ -1,5 +1,11 @@
 # firebase-storage-kit
 
+## 1.3.0
+
+### Minor Changes
+
+- [#25](https://github.com/marknesh/firebase-storage-kit/pull/25) [`0d797dc`](https://github.com/marknesh/firebase-storage-kit/commit/0d797dc3429eaedb83d40e5ac6b7fc1be41bbc5a) Thanks [@marknesh](https://github.com/marknesh)! - Add optional `customMetadata` to `UploadOptions` for setting Firebase Storage custom metadata at upload time.
+
 ## 1.2.1
 
 ### Patch Changes
