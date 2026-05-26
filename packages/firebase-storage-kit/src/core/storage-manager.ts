@@ -1,9 +1,14 @@
 import { BatchHandle, type BatchOptions } from "./batch-handle";
+import {
+  computeRetryDelay,
+  isRetryableStorageError,
+  resolveRetryOptions,
+} from "./retry";
 import { UploadHandle } from "./upload-handle";
 
 import type { StorageProvider } from "../providers/provider";
 import type { FileMetadata } from "../types/metadata";
-import type { UploadOptions } from "../types/provider";
+import type { ProviderUploadTask, UploadOptions } from "../types/provider";
 import type { StorageState, UploadItem } from "../types/upload";
 
 /**
@@ -19,6 +24,7 @@ export class StorageManager {
   private batches: BatchHandle[] = [];
   private changeListeners = new Set<(state: StorageState) => void>();
   private cachedState: StorageState | null = null;
+  private uploadOptionsByHandleId = new Map<string, UploadOptions>();
 
   constructor(provider: StorageProvider) {
     this.provider = provider;
@@ -69,6 +75,7 @@ export class StorageManager {
    */
   uploadFile(file: File, options: UploadOptions): UploadHandle {
     const handle = this.createHandle(file, { path: options.path });
+    this.uploadOptionsByHandleId.set(handle.upload.id, options);
     this.uploadHandles.push(handle);
     this.notifyChange();
     this.startUpload(handle, options);
@@ -93,7 +100,12 @@ export class StorageManager {
     const id = crypto.randomUUID();
     const handles = files.map((file, i) => {
       const options = optionsFor(file, i);
-      return this.createHandle(file, { batchId: id, path: options.path });
+      const handle = this.createHandle(file, {
+        batchId: id,
+        path: options.path,
+      });
+      this.uploadOptionsByHandleId.set(handle.upload.id, options);
+      return handle;
     });
 
     this.uploadHandles.push(...handles);
@@ -103,7 +115,10 @@ export class StorageManager {
       uploads: handles,
       options: batchOptions,
       startNext: (handle) => {
-        this.startUpload(handle, { path: handle.upload.path });
+        const options = this.uploadOptionsByHandleId.get(handle.upload.id) ?? {
+          path: handle.upload.path,
+        };
+        this.startUpload(handle, options);
       },
       onChange: () => this.notifyChange(),
     });
@@ -132,15 +147,101 @@ export class StorageManager {
   }
 
   private startUpload(handle: UploadHandle, options: UploadOptions): void {
-    handle._setStatus("uploading");
-    const task = this.provider.upload(handle.upload.file, options, {
-      onProgress: (bytesTransferred, totalBytes) =>
-        handle._reportProgress(bytesTransferred, totalBytes),
-      onError: (error) => handle._reportError(error),
-      onSuccess: (downloadURL) => handle._reportSuccess(downloadURL),
+    const retryOptions = resolveRetryOptions(options.retry);
+    const maxAttempts = retryOptions ? retryOptions.maxRetries + 1 : 1;
+
+    let attempt = 0;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+    let currentTask: ProviderUploadTask | null = null;
+    let aborted = false;
+    let pausedDuringRetry = false;
+    let pendingRetryError: Error | null = null;
+
+    const clearRetryTimeout = (): void => {
+      if (retryTimeout !== null) {
+        clearTimeout(retryTimeout);
+        retryTimeout = null;
+      }
+    };
+
+    const abort = (): void => {
+      aborted = true;
+      clearRetryTimeout();
+      currentTask?.cancel();
+      currentTask = null;
+      pendingRetryError = null;
+    };
+
+    const scheduleRetry = (error: Error, delayMs: number): void => {
+      if (aborted) return;
+
+      pendingRetryError = error;
+      handle._enterRetryBackoff({
+        attempt: attempt + 1,
+        maxAttempts,
+        delayMs,
+        error,
+      });
+
+      retryTimeout = setTimeout(() => {
+        retryTimeout = null;
+        if (aborted || pausedDuringRetry) return;
+        pendingRetryError = null;
+        runAttempt();
+      }, delayMs);
+    };
+
+    const runAttempt = (): void => {
+      if (aborted) return;
+
+      attempt += 1;
+      handle._prepareRetryAttempt(attempt);
+
+      currentTask = this.provider.upload(handle.upload.file, options, {
+        onProgress: (bytesTransferred, totalBytes) =>
+          handle._reportProgress(bytesTransferred, totalBytes),
+        onError: (error) => {
+          currentTask = null;
+          if (aborted) return;
+
+          if (
+            attempt < maxAttempts &&
+            isRetryableStorageError(error, retryOptions)
+          ) {
+            const delayMs = retryOptions
+              ? computeRetryDelay(attempt, retryOptions)
+              : 0;
+            scheduleRetry(error, delayMs);
+            return;
+          }
+
+          handle._reportError(error);
+        },
+        onSuccess: (downloadURL) => {
+          currentTask = null;
+          if (aborted) return;
+          handle._reportSuccess(downloadURL);
+        },
+      });
+      handle._attachTask(currentTask);
+    };
+
+    handle._registerControlHooks({
+      abort,
+      pauseDuringRetry: () => {
+        pausedDuringRetry = true;
+        clearRetryTimeout();
+      },
+      resumeDuringRetry: () => {
+        if (aborted) return;
+        pausedDuringRetry = false;
+        if (pendingRetryError) {
+          scheduleRetry(pendingRetryError, 0);
+        }
+      },
     });
-    handle._attachTask(task);
-    this.notifyChange();
+
+    runAttempt();
   }
 
   private notifyChange(): void {

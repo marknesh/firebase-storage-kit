@@ -60,6 +60,21 @@ const unsubscribe = manager.subscribe((state) => {
 });
 ```
 
+### Upload retries
+
+Uploads retry transient failures automatically (3 retries by default, exponential backoff with jitter). Pass `retry: false` to disable, or customize:
+
+```ts
+const handle = manager.uploadFile(file, {
+  path: `uploads/${file.name}`,
+  retry: { maxRetries: 5, initialDelayMs: 700 },
+});
+
+handle.on("retry", ({ attempt, maxAttempts, delayMs, error }) => {
+  console.log(`Retry ${attempt}/${maxAttempts} in ${delayMs}ms`, error.message);
+});
+```
+
 ### Querying files
 
 ```ts

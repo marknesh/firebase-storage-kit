@@ -109,7 +109,12 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
     this.canceled = true;
     for (const h of this.uploads) {
       const s = h.upload.status;
-      if (s === "queued" || s === "uploading" || s === "paused") {
+      if (
+        s === "queued" ||
+        s === "uploading" ||
+        s === "retrying" ||
+        s === "paused"
+      ) {
         h.cancel();
       }
     }
@@ -120,7 +125,9 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
     if (this.paused || this.canceled || this.terminalEmitted) return;
     this.paused = true;
     for (const h of this.uploads) {
-      if (h.upload.status === "uploading") h.pause();
+      if (h.upload.status === "uploading" || h.upload.status === "retrying") {
+        h.pause();
+      }
     }
     this.onChange();
   }
@@ -214,7 +221,12 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
       for (const h of this.uploads) {
         if (h.upload.id === upload.id) continue;
         const s = h.upload.status;
-        if (s === "queued" || s === "uploading" || s === "paused") {
+        if (
+          s === "queued" ||
+          s === "uploading" ||
+          s === "retrying" ||
+          s === "paused"
+        ) {
           h.cancel();
         }
       }

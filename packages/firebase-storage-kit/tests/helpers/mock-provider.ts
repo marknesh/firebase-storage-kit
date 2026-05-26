@@ -17,6 +17,12 @@ export type UploadBehavior =
     }
   | { type: "error"; error?: Error; async?: boolean }
   | {
+      type: "failThenSucceed";
+      failures: number;
+      error?: Error;
+      async?: boolean;
+    }
+  | {
       type: "manual";
       onStart?: (
         file: File,
@@ -70,6 +76,7 @@ function runUploadBehavior(
   options: UploadOptions,
   callbacks: ProviderUploadCallbacks,
   task: ProviderUploadTask,
+  failCounts?: Map<string, number>,
 ): void {
   if (behavior.type === "manual") {
     behavior.onStart?.(file, options, callbacks, task);
@@ -77,26 +84,47 @@ function runUploadBehavior(
   }
 
   const run = () => {
+    if (behavior.type === "failThenSucceed") {
+      const key = `${options.path}:${file.name}`;
+      const count = failCounts?.get(key) ?? 0;
+      failCounts?.set(key, count + 1);
+
+      if (count < behavior.failures) {
+        callbacks.onError(behavior.error ?? new Error("upload failed"));
+        return;
+      }
+    }
+
     if (behavior.type === "error") {
       callbacks.onError(behavior.error ?? new Error("upload failed"));
       return;
     }
 
-    const ticks = behavior.progress ?? [
-      { bytesTransferred: 0, totalBytes: file.size },
-      { bytesTransferred: file.size, totalBytes: file.size },
-    ];
+    if (behavior.type !== "success" && behavior.type !== "failThenSucceed") {
+      return;
+    }
+
+    const ticks =
+      behavior.type === "success" && behavior.progress
+        ? behavior.progress
+        : [
+            { bytesTransferred: 0, totalBytes: file.size },
+            { bytesTransferred: file.size, totalBytes: file.size },
+          ];
 
     for (const tick of ticks) {
       callbacks.onProgress(tick.bytesTransferred, tick.totalBytes);
     }
 
-    callbacks.onSuccess(
-      behavior.downloadURL ?? `https://example.com/${options.path}`,
-    );
+    const downloadURL =
+      behavior.type === "success" && behavior.downloadURL
+        ? behavior.downloadURL
+        : `https://example.com/${options.path}`;
+
+    callbacks.onSuccess(downloadURL);
   };
 
-  if (behavior.async) {
+  if ("async" in behavior && behavior.async) {
     queueMicrotask(run);
   } else {
     run();
@@ -107,6 +135,7 @@ export function createMockProvider(
   options: MockProviderOptions = {},
 ): MockProviderResult {
   const tasks: ProviderUploadTask[] = [];
+  const failCounts = new Map<string, number>();
   const uploadBehavior: UploadBehavior = options.uploadBehavior ?? {
     type: "success",
     async: true,
@@ -144,7 +173,14 @@ export function createMockProvider(
         resume: mock(() => {}),
       };
       tasks.push(task);
-      runUploadBehavior(uploadBehavior, file, uploadOptions, callbacks, task);
+      runUploadBehavior(
+        uploadBehavior,
+        file,
+        uploadOptions,
+        callbacks,
+        task,
+        failCounts,
+      );
       return task;
     }),
   };

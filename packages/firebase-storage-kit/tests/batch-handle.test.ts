@@ -79,7 +79,11 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
         onStart: (file, _options, callbacks) => {
           queueMicrotask(() => {
             if (file.name === "2.txt") {
-              callbacks.onError(new Error("failed"));
+              callbacks.onError(
+                Object.assign(new Error("failed"), {
+                  code: "storage/unauthorized",
+                }),
+              );
               return;
             }
             callbacks.onSuccess("https://example.com/file");
@@ -120,7 +124,11 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
           call++;
           if (call === 1) {
             queueMicrotask(() => {
-              callbacks.onError(new Error("first failure"));
+              callbacks.onError(
+                Object.assign(new Error("first failure"), {
+                  code: "storage/unauthorized",
+                }),
+              );
             });
             return;
           }
