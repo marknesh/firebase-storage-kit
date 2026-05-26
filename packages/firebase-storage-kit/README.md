@@ -44,7 +44,7 @@ handle.on("success", (upload) => {
 const batch = manager.uploadFiles(
   files,
   (file) => ({ path: `uploads/${file.name}` }),
-  { concurrency: 3, continueOnError: true },
+  { concurrency: 3, continueOnError: true }
 );
 
 batch.on("success", (snapshot) => {

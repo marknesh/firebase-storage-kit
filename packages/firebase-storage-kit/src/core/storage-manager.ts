@@ -1,15 +1,15 @@
-import { BatchHandle, type BatchOptions } from "./batch-handle";
+import type { StorageProvider } from "../providers/provider";
+import type { FileMetadata } from "../types/metadata";
+import type { ProviderUploadTask, UploadOptions } from "../types/provider";
+import type { StorageState, UploadItem } from "../types/upload";
+import type { BatchOptions } from "./batch-handle";
+import { BatchHandle } from "./batch-handle";
 import {
   computeRetryDelay,
   isRetryableStorageError,
   resolveRetryOptions,
 } from "./retry";
 import { UploadHandle } from "./upload-handle";
-
-import type { StorageProvider } from "../providers/provider";
-import type { FileMetadata } from "../types/metadata";
-import type { ProviderUploadTask, UploadOptions } from "../types/provider";
-import type { StorageState, UploadItem } from "../types/upload";
 
 /**
  * Manages file uploads and storage queries.
@@ -19,12 +19,12 @@ import type { StorageState, UploadItem } from "../types/upload";
  *
  */
 export class StorageManager {
-  private provider: StorageProvider;
-  private uploadHandles: UploadHandle[] = [];
-  private batches: BatchHandle[] = [];
-  private changeListeners = new Set<(state: StorageState) => void>();
+  private readonly provider: StorageProvider;
+  private readonly uploadHandles: UploadHandle[] = [];
+  private readonly batches: BatchHandle[] = [];
+  private readonly changeListeners = new Set<(state: StorageState) => void>();
   private cachedState: StorageState | null = null;
-  private uploadOptionsByHandleId = new Map<string, UploadOptions>();
+  private readonly uploadOptionsByHandleId = new Map<string, UploadOptions>();
 
   constructor(provider: StorageProvider) {
     this.provider = provider;
@@ -32,12 +32,10 @@ export class StorageManager {
 
   /** Current `uploads` and `batches` state. */
   getState = (): StorageState => {
-    if (this.cachedState === null) {
-      this.cachedState = {
-        uploads: this.uploadHandles.map((h) => h.upload),
-        batches: this.batches.map((b) => b.snapshot()),
-      };
-    }
+    this.cachedState ??= {
+      batches: this.batches.map((b) => b.snapshot()),
+      uploads: this.uploadHandles.map((h) => h.upload),
+    };
     return this.cachedState;
   };
 
@@ -50,23 +48,23 @@ export class StorageManager {
   };
 
   /** Returns `true` if the object exists. Returns `false` only for not-found; other errors are thrown. */
-  exists(path: string): Promise<boolean> {
-    return this.provider.exists(path);
+  async exists(path: string): Promise<boolean> {
+    return await this.provider.exists(path);
   }
 
   /** Returns metadata for the object at `path`. Throws if the object does not exist. */
-  getMetadata(path: string): Promise<FileMetadata> {
-    return this.provider.getMetadata(path);
+  async getMetadata(path: string): Promise<FileMetadata> {
+    return await this.provider.getMetadata(path);
   }
 
   /** Returns a download URL for the object at `path`. */
-  getDownloadURL(path: string): Promise<string> {
-    return this.provider.getDownloadURL(path);
+  async getDownloadURL(path: string): Promise<string> {
+    return await this.provider.getDownloadURL(path);
   }
 
   /** Deletes the object at `path`. */
-  delete(path: string): Promise<void> {
-    return this.provider.delete(path);
+  async delete(path: string): Promise<void> {
+    await this.provider.delete(path);
   }
 
   /** Starts the file upload.`options.path` is the object path in storage (see {@link UploadOptions}).
@@ -86,7 +84,6 @@ export class StorageManager {
    * Upload several files as one batch. The optional third argument sets how many run at once
    * and what happens when one file fails — see {@link BatchOptions}.
    *
-   * @remarks
    * `optionsFor` picks storage options per file (same as `uploadFile`); index matches `files` order.
    * If `continueOnError` is `false`, the first failure cancels the other files and the batch fires `error`.
    * If it stays `true` (default), other files keep going; when every file has finished, the batch fires `success`.
@@ -95,7 +92,7 @@ export class StorageManager {
   uploadFiles(
     files: File[],
     optionsFor: (file: File, index: number) => UploadOptions,
-    batchOptions: BatchOptions = {},
+    batchOptions: BatchOptions = {}
   ): BatchHandle {
     const id = crypto.randomUUID();
     const handles = files.map((file, i) => {
@@ -112,7 +109,9 @@ export class StorageManager {
 
     const batch = new BatchHandle({
       id,
-      uploads: handles,
+      onChange: () => {
+        this.notifyChange();
+      },
       options: batchOptions,
       startNext: (handle) => {
         const options = this.uploadOptionsByHandleId.get(handle.upload.id) ?? {
@@ -120,7 +119,7 @@ export class StorageManager {
         };
         this.startUpload(handle, options);
       },
-      onChange: () => this.notifyChange(),
+      uploads: handles,
     });
 
     this.batches.push(batch);
@@ -131,19 +130,21 @@ export class StorageManager {
 
   private createHandle(
     file: File,
-    options: { path: string; batchId?: string },
+    options: { path: string; batchId?: string }
   ): UploadHandle {
     const upload: UploadItem = {
-      id: crypto.randomUUID(),
+      bytesTransferred: 0,
       file,
+      id: crypto.randomUUID(),
       path: options.path,
       progress: 0,
-      bytesTransferred: 0,
-      totalBytes: file.size,
       status: "queued",
-      ...(options.batchId !== undefined ? { batchId: options.batchId } : {}),
+      totalBytes: file.size,
+      ...(options.batchId === undefined ? {} : { batchId: options.batchId }),
     };
-    return new UploadHandle(upload, () => this.notifyChange());
+    return new UploadHandle(upload, () => {
+      this.notifyChange();
+    });
   }
 
   private startUpload(handle: UploadHandle, options: UploadOptions): void {
@@ -172,58 +173,70 @@ export class StorageManager {
       pendingRetryError = null;
     };
 
-    const scheduleRetry = (error: Error, delayMs: number): void => {
-      if (aborted) return;
+    const retryController = {
+      runAttempt: (): void => {
+        if (aborted) {
+          return;
+        }
 
-      pendingRetryError = error;
-      handle._enterRetryBackoff({
-        attempt: attempt + 1,
-        maxAttempts,
-        delayMs,
-        error,
-      });
+        attempt += 1;
+        handle._prepareRetryAttempt(attempt);
 
-      retryTimeout = setTimeout(() => {
-        retryTimeout = null;
-        if (aborted || pausedDuringRetry) return;
-        pendingRetryError = null;
-        runAttempt();
-      }, delayMs);
-    };
+        currentTask = this.provider.upload(handle.upload.file, options, {
+          onError: (error) => {
+            currentTask = null;
+            if (aborted) {
+              return;
+            }
 
-    const runAttempt = (): void => {
-      if (aborted) return;
+            if (
+              attempt < maxAttempts &&
+              isRetryableStorageError(error, retryOptions)
+            ) {
+              const delayMs = retryOptions
+                ? computeRetryDelay(attempt, retryOptions)
+                : 0;
+              retryController.scheduleRetry(error, delayMs);
+              return;
+            }
 
-      attempt += 1;
-      handle._prepareRetryAttempt(attempt);
+            handle._reportError(error);
+          },
+          onProgress: (bytesTransferred, totalBytes) => {
+            handle._reportProgress(bytesTransferred, totalBytes);
+          },
+          onSuccess: (downloadURL) => {
+            currentTask = null;
+            if (aborted) {
+              return;
+            }
+            handle._reportSuccess(downloadURL);
+          },
+        });
+        handle._attachTask(currentTask);
+      },
+      scheduleRetry: (error: Error, delayMs: number): void => {
+        if (aborted) {
+          return;
+        }
 
-      currentTask = this.provider.upload(handle.upload.file, options, {
-        onProgress: (bytesTransferred, totalBytes) =>
-          handle._reportProgress(bytesTransferred, totalBytes),
-        onError: (error) => {
-          currentTask = null;
-          if (aborted) return;
+        pendingRetryError = error;
+        handle._enterRetryBackoff({
+          attempt: attempt + 1,
+          delayMs,
+          error,
+          maxAttempts,
+        });
 
-          if (
-            attempt < maxAttempts &&
-            isRetryableStorageError(error, retryOptions)
-          ) {
-            const delayMs = retryOptions
-              ? computeRetryDelay(attempt, retryOptions)
-              : 0;
-            scheduleRetry(error, delayMs);
+        retryTimeout = setTimeout(() => {
+          retryTimeout = null;
+          if (aborted || pausedDuringRetry) {
             return;
           }
-
-          handle._reportError(error);
-        },
-        onSuccess: (downloadURL) => {
-          currentTask = null;
-          if (aborted) return;
-          handle._reportSuccess(downloadURL);
-        },
-      });
-      handle._attachTask(currentTask);
+          pendingRetryError = null;
+          retryController.runAttempt();
+        }, delayMs);
+      },
     };
 
     handle._registerControlHooks({
@@ -233,15 +246,17 @@ export class StorageManager {
         clearRetryTimeout();
       },
       resumeDuringRetry: () => {
-        if (aborted) return;
+        if (aborted) {
+          return;
+        }
         pausedDuringRetry = false;
         if (pendingRetryError) {
-          scheduleRetry(pendingRetryError, 0);
+          retryController.scheduleRetry(pendingRetryError, 0);
         }
       },
     });
 
-    runAttempt();
+    retryController.runAttempt();
   }
 
   private notifyChange(): void {

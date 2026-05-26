@@ -1,27 +1,20 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  mock,
-} from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
-import { StorageManager } from "../src/core/storage-manager";
 import {
   computeRetryDelay,
   isRetryableStorageError,
   resolveRetryOptions,
 } from "../src/core/retry";
+import { StorageManager } from "../src/core/storage-manager";
 import {
   createMockProvider,
+  delay,
   waitForMicrotasks,
 } from "./helpers/mock-provider";
 import { createTestFile } from "./helpers/test-file";
 
-function storageError(code: string, message = code): Error {
-  return Object.assign(new Error(message), { code });
-}
+const storageError = (code: string, message = code): Error =>
+  Object.assign(new Error(message), { code });
 
 describe("retry utilities", () => {
   it("resolveRetryOptions returns defaults when omitted", () => {
@@ -40,27 +33,27 @@ describe("retry utilities", () => {
     expect(
       isRetryableStorageError(
         storageError("storage/retry-limit-exceeded"),
-        options,
-      ),
+        options
+      )
     ).toBe(true);
     expect(
-      isRetryableStorageError(storageError("storage/unauthorized"), options),
+      isRetryableStorageError(storageError("storage/unauthorized"), options)
     ).toBe(false);
     expect(isRetryableStorageError(new Error("network"), options)).toBe(true);
   });
 
   it("computeRetryDelay respects jitter setting", () => {
     const withJitter = computeRetryDelay(2, {
-      maxRetries: 3,
       initialDelayMs: 1000,
-      maxDelayMs: 30000,
       jitter: true,
+      maxDelayMs: 30_000,
+      maxRetries: 3,
     });
     const withoutJitter = computeRetryDelay(2, {
-      maxRetries: 3,
       initialDelayMs: 1000,
-      maxDelayMs: 30000,
       jitter: false,
+      maxDelayMs: 30_000,
+      maxRetries: 3,
     });
 
     expect(withJitter).toBeGreaterThanOrEqual(1000);
@@ -81,23 +74,23 @@ describe("upload retries", () => {
   it("succeeds after transient failures with default retries", async () => {
     const { provider, spies } = createMockProvider({
       uploadBehavior: {
-        type: "failThenSucceed",
-        failures: 2,
-        error: storageError("storage/retry-limit-exceeded"),
         async: true,
+        error: storageError("storage/retry-limit-exceeded"),
+        failures: 2,
+        type: "failThenSucceed",
       },
     });
     const manager = new StorageManager(provider);
     const handle = manager.uploadFile(createTestFile("photo.jpg"), {
       path: "uploads/photo.jpg",
-      retry: { initialDelayMs: 10, maxDelayMs: 10, jitter: false },
+      retry: { initialDelayMs: 10, jitter: false, maxDelayMs: 10 },
     });
 
     await waitForMicrotasks();
     await waitForMicrotasks();
     expect(handle.upload.status).toBe("retrying");
 
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await delay(30);
     await waitForMicrotasks();
 
     expect(spies.upload).toHaveBeenCalledTimes(3);
@@ -108,9 +101,9 @@ describe("upload retries", () => {
   it("fails immediately on non-retryable errors", async () => {
     const { provider, spies } = createMockProvider({
       uploadBehavior: {
-        type: "error",
-        error: storageError("storage/unauthorized"),
         async: true,
+        error: storageError("storage/unauthorized"),
+        type: "error",
       },
     });
     const manager = new StorageManager(provider);
@@ -128,9 +121,9 @@ describe("upload retries", () => {
   it("does not retry when retry is false", async () => {
     const { provider, spies } = createMockProvider({
       uploadBehavior: {
-        type: "error",
-        error: storageError("storage/retry-limit-exceeded"),
         async: true,
+        error: storageError("storage/retry-limit-exceeded"),
+        type: "error",
       },
     });
     const manager = new StorageManager(provider);
@@ -149,17 +142,17 @@ describe("upload retries", () => {
   it("emits retry event with attempt metadata", async () => {
     const { provider } = createMockProvider({
       uploadBehavior: {
-        type: "failThenSucceed",
-        failures: 1,
-        error: storageError("storage/unknown"),
         async: true,
+        error: storageError("storage/unknown"),
+        failures: 1,
+        type: "failThenSucceed",
       },
     });
     const manager = new StorageManager(provider);
     const onRetry = mock(() => {});
     const handle = manager.uploadFile(createTestFile("photo.jpg"), {
       path: "uploads/photo.jpg",
-      retry: { maxRetries: 2, initialDelayMs: 10, jitter: false },
+      retry: { initialDelayMs: 10, jitter: false, maxRetries: 2 },
     });
 
     handle.on("retry", onRetry);
@@ -169,12 +162,12 @@ describe("upload retries", () => {
     expect(onRetry).toHaveBeenCalledWith(
       expect.objectContaining({
         attempt: 2,
-        maxAttempts: 3,
         delayMs: 10,
-      }),
+        maxAttempts: 3,
+      })
     );
 
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await delay(20);
     await waitForMicrotasks();
 
     expect(handle.upload.status).toBe("success");
@@ -183,10 +176,10 @@ describe("upload retries", () => {
   it("cancel during backoff aborts without final error", async () => {
     const { provider, spies } = createMockProvider({
       uploadBehavior: {
-        type: "failThenSucceed",
-        failures: 5,
-        error: storageError("storage/retry-limit-exceeded"),
         async: true,
+        error: storageError("storage/retry-limit-exceeded"),
+        failures: 5,
+        type: "failThenSucceed",
       },
     });
     const manager = new StorageManager(provider);
@@ -201,7 +194,7 @@ describe("upload retries", () => {
     await waitForMicrotasks();
 
     handle.cancel();
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    await delay(150);
 
     expect(handle.upload.status).toBe("canceled");
     expect(onError).not.toHaveBeenCalled();
@@ -211,10 +204,10 @@ describe("upload retries", () => {
   it("pause during backoff delays retry until resume", async () => {
     const { provider, spies } = createMockProvider({
       uploadBehavior: {
-        type: "failThenSucceed",
-        failures: 1,
-        error: storageError("storage/retry-limit-exceeded"),
         async: true,
+        error: storageError("storage/retry-limit-exceeded"),
+        failures: 1,
+        type: "failThenSucceed",
       },
     });
     const manager = new StorageManager(provider);
@@ -230,11 +223,11 @@ describe("upload retries", () => {
     handle.pause();
     expect(handle.upload.status).toBe("paused");
 
-    await new Promise((resolve) => setTimeout(resolve, 80));
+    await delay(80);
     expect(spies.upload).toHaveBeenCalledTimes(1);
 
     handle.resume();
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await delay(20);
     await waitForMicrotasks();
 
     expect(spies.upload).toHaveBeenCalledTimes(2);
@@ -244,10 +237,10 @@ describe("upload retries", () => {
   it("preserves per-file retry options in batch uploads", async () => {
     const { provider, spies } = createMockProvider({
       uploadBehavior: {
-        type: "failThenSucceed",
-        failures: 1,
-        error: storageError("storage/retry-limit-exceeded"),
         async: true,
+        error: storageError("storage/retry-limit-exceeded"),
+        failures: 1,
+        type: "failThenSucceed",
       },
     });
     const manager = new StorageManager(provider);
@@ -257,14 +250,14 @@ describe("upload retries", () => {
       [file],
       () => ({
         path: "uploads/a.txt",
-        retry: { maxRetries: 1, initialDelayMs: 10, jitter: false },
+        retry: { initialDelayMs: 10, jitter: false, maxRetries: 1 },
       }),
-      { concurrency: 1 },
+      { concurrency: 1 }
     );
 
     await waitForMicrotasks();
     await waitForMicrotasks();
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await delay(20);
     await waitForMicrotasks();
 
     expect(spies.upload).toHaveBeenCalledTimes(2);

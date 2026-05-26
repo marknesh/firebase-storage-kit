@@ -6,7 +6,7 @@ import type { UploadHandle, UploadRetryEvent } from "./upload-handle";
  * Events on a batch from {@link StorageManager.uploadFiles}. `progress` / `change` carry a {@link UploadBatch} snapshot.
  * `uploadSuccess`, `uploadError`, and `uploadRetry` fire once per child (retry can fire multiple times per child). When all children are done: `success` (normal end) or `error` (only if `continueOnError` was `false` and one failed).
  */
-export type BatchHandleEvents = {
+export interface BatchHandleEvents extends Record<string, unknown> {
   progress: UploadBatch;
   uploadSuccess: UploadItem;
   uploadError: UploadItem;
@@ -14,7 +14,7 @@ export type BatchHandleEvents = {
   success: UploadBatch;
   error: UploadBatch;
   change: UploadBatch;
-};
+}
 
 /** Settings for {@link StorageManager.uploadFiles} (third argument). */
 export interface BatchOptions {
@@ -43,15 +43,15 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
   public readonly id: string;
   public readonly uploads: UploadHandle[];
 
-  private concurrency: number;
-  private continueOnError: boolean;
-  private startNext: (handle: UploadHandle) => void;
-  private onChange: () => void;
+  private readonly concurrency: number;
+  private readonly continueOnError: boolean;
+  private readonly startNext: (handle: UploadHandle) => void;
+  private readonly onChange: () => void;
 
   private running = 0;
   private nextIdx = 0;
   /** Indices that were started via {@link fillSlots} and still hold a concurrency slot. */
-  private activeSlots = new Set<number>();
+  private readonly activeSlots = new Set<number>();
   private settledCount = 0;
   private succeededCount = 0;
   private failedCount = 0;
@@ -82,29 +82,46 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
     this.onChange = init.onChange;
 
     this.uploadsView = init.uploads.map((h) => h.upload);
-    this.lastBytes = new Array(init.uploads.length).fill(0);
-    this.lastTotal = new Array(init.uploads.length).fill(0);
-    for (let i = 0; i < this.uploadsView.length; i++) {
-      const u = this.uploadsView[i]!;
+    this.lastBytes = Array.from(
+      { length: init.uploads.length },
+      (): number => 0
+    );
+    this.lastTotal = Array.from(
+      { length: init.uploads.length },
+      (): number => 0
+    );
+    for (let i = 0; i < this.uploadsView.length; i += 1) {
+      const u = this.uploadsView[i];
+      if (!u) {
+        continue;
+      }
       this.lastBytes[i] = u.bytesTransferred;
       this.lastTotal[i] = u.totalBytes;
       this.aggregateBytesTransferred += u.bytesTransferred;
       this.aggregateTotalBytes += u.totalBytes;
     }
 
-    this.uploads.forEach((child, idx) => {
-      child.on("progress", (upload) => this.handleChildProgress(idx, upload));
-      child.on("retry", (retryEvent) => this.handleChildRetry(idx, retryEvent));
-      child.on("success", (upload) =>
-        this.handleChildSettled(idx, upload, "success"),
-      );
-      child.on("error", (upload) =>
-        this.handleChildSettled(idx, upload, "error"),
-      );
-      child.on("canceled", (upload) =>
-        this.handleChildSettled(idx, upload, "canceled"),
-      );
-    });
+    for (let idx = 0; idx < this.uploads.length; idx += 1) {
+      const child = this.uploads[idx];
+      if (!child) {
+        continue;
+      }
+      child.on("progress", (upload) => {
+        this.handleChildProgress(idx, upload);
+      });
+      child.on("retry", (retryEvent) => {
+        this.handleChildRetry(idx, retryEvent);
+      });
+      child.on("success", (upload) => {
+        this.handleChildSettled(idx, upload, "success");
+      });
+      child.on("error", (upload) => {
+        this.handleChildSettled(idx, upload, "error");
+      });
+      child.on("canceled", (upload) => {
+        this.handleChildSettled(idx, upload, "canceled");
+      });
+    }
   }
 
   /** @internal */
@@ -113,7 +130,9 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
   }
 
   cancel(): void {
-    if (this.canceled || this.terminalEmitted) return;
+    if (this.canceled || this.terminalEmitted) {
+      return;
+    }
     this.canceled = true;
     for (const h of this.uploads) {
       const s = h.upload.status;
@@ -130,7 +149,9 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
   }
 
   pause(): void {
-    if (this.paused || this.canceled || this.terminalEmitted) return;
+    if (this.paused || this.canceled || this.terminalEmitted) {
+      return;
+    }
     this.paused = true;
     for (const h of this.uploads) {
       if (h.upload.status === "uploading" || h.upload.status === "retrying") {
@@ -141,10 +162,14 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
   }
 
   resume(): void {
-    if (!this.paused || this.canceled || this.terminalEmitted) return;
+    if (!this.paused || this.canceled || this.terminalEmitted) {
+      return;
+    }
     this.paused = false;
     for (const h of this.uploads) {
-      if (h.upload.status === "paused") h.resume();
+      if (h.upload.status === "paused") {
+        h.resume();
+      }
     }
     this.fillSlots();
     this.onChange();
@@ -156,11 +181,11 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
         ? (this.aggregateBytesTransferred / this.aggregateTotalBytes) * 100
         : 0;
     return {
-      id: this.id,
-      uploads: this.uploadsView,
-      totalProgress,
       completedCount: this.succeededCount,
       failedCount: this.failedCount,
+      id: this.id,
+      totalProgress,
+      uploads: this.uploadsView,
     };
   }
 
@@ -181,11 +206,14 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
       this.running < this.concurrency &&
       this.nextIdx < this.uploads.length
     ) {
-      const idx = this.nextIdx++;
+      const idx = this.nextIdx;
+      this.nextIdx += 1;
       const handle = this.uploads[idx];
-      if (!handle || handle.upload.status !== "queued") continue;
+      if (!handle || handle.upload.status !== "queued") {
+        continue;
+      }
       this.activeSlots.add(idx);
-      this.running++;
+      this.running += 1;
       this.startNext(handle);
     }
   }
@@ -207,19 +235,19 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
   private handleChildSettled(
     idx: number,
     upload: UploadItem,
-    kind: "success" | "error" | "canceled",
+    kind: "success" | "error" | "canceled"
   ): void {
     this.updateAggregate(idx, upload);
     if (this.activeSlots.delete(idx)) {
       this.running = Math.max(0, this.running - 1);
     }
-    this.settledCount++;
+    this.settledCount += 1;
 
     if (kind === "success") {
-      this.succeededCount++;
+      this.succeededCount += 1;
       this.emit("uploadSuccess", upload);
     } else if (kind === "error") {
-      this.failedCount++;
+      this.failedCount += 1;
       this.emit("uploadError", upload);
     }
 
@@ -234,7 +262,9 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
     ) {
       this.failedFast = true;
       for (const h of this.uploads) {
-        if (h.upload.id === upload.id) continue;
+        if (h.upload.id === upload.id) {
+          continue;
+        }
         const s = h.upload.status;
         if (
           s === "queued" ||

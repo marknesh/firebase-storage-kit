@@ -3,35 +3,31 @@ import { describe, expect, it, mock } from "bun:test";
 import { StorageManager } from "../src/core/storage-manager";
 import {
   createMockProvider,
+  delay,
   waitForMicrotasks,
   waitForUploadSettled,
 } from "./helpers/mock-provider";
 import { createTestFile } from "./helpers/test-file";
 
-async function waitForBatchTerminal(
+const waitForBatchTerminal = async (
   batch: ReturnType<StorageManager["uploadFiles"]>,
-  timeoutMs = 3000,
-): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error("batch did not finish in time"));
-    }, timeoutMs);
-
-    const check = () => {
-      const terminal = batch.uploads.every((handle) => {
-        const status = handle.upload.status;
-        return status === "success" || status === "error" || status === "canceled";
-      });
-      if (terminal) {
-        clearTimeout(timeout);
-        resolve();
-      }
-    };
-
-    batch.on("change", check);
-    check();
-  });
-}
+  timeoutMs = 3000
+): Promise<void> => {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const terminal = batch.uploads.every((handle) => {
+      const { status } = handle.upload;
+      return (
+        status === "success" || status === "error" || status === "canceled"
+      );
+    });
+    if (terminal) {
+      return;
+    }
+    await delay(10);
+  }
+  throw new Error("batch did not finish in time");
+};
 
 describe("BatchHandle via StorageManager.uploadFiles", () => {
   it("respects concurrency limits", async () => {
@@ -40,16 +36,16 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
 
     const { provider } = createMockProvider({
       uploadBehavior: {
-        type: "manual",
         onStart: (_file, _options, callbacks) => {
-          inFlight++;
+          inFlight += 1;
           maxInFlight = Math.max(maxInFlight, inFlight);
           queueMicrotask(() => {
-            inFlight--;
+            inFlight -= 1;
             callbacks.onProgress(1, 1);
             callbacks.onSuccess("https://example.com/file");
           });
         },
+        type: "manual",
       },
     });
 
@@ -75,20 +71,20 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
   it("continues on error by default and emits batch success", async () => {
     const { provider } = createMockProvider({
       uploadBehavior: {
-        type: "manual",
         onStart: (file, _options, callbacks) => {
           queueMicrotask(() => {
             if (file.name === "2.txt") {
               callbacks.onError(
                 Object.assign(new Error("failed"), {
                   code: "storage/unauthorized",
-                }),
+                })
               );
               return;
             }
             callbacks.onSuccess("https://example.com/file");
           });
         },
+        type: "manual",
       },
     });
 
@@ -99,7 +95,7 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
         createTestFile("2.txt"),
         createTestFile("3.txt"),
       ],
-      (file) => ({ path: `uploads/${file.name}` }),
+      (file) => ({ path: `uploads/${file.name}` })
     );
 
     const onSuccess = mock(() => {});
@@ -119,15 +115,14 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
     let call = 0;
     const { provider } = createMockProvider({
       uploadBehavior: {
-        type: "manual",
         onStart: (_file, _options, callbacks, task) => {
-          call++;
+          call += 1;
           if (call === 1) {
             queueMicrotask(() => {
               callbacks.onError(
                 Object.assign(new Error("first failure"), {
                   code: "storage/unauthorized",
-                }),
+                })
               );
             });
             return;
@@ -138,6 +133,7 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
           });
           task.cancel = mock(() => {});
         },
+        type: "manual",
       },
     });
 
@@ -149,7 +145,7 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
         createTestFile("3.txt"),
       ],
       (file) => ({ path: `uploads/${file.name}` }),
-      { concurrency: 1, continueOnError: false },
+      { concurrency: 1, continueOnError: false }
     );
 
     const onSuccess = mock(() => {});
@@ -162,19 +158,19 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
     expect(onError).toHaveBeenCalled();
     expect(onSuccess).not.toHaveBeenCalled();
     expect(batch.uploads.some((h) => h.upload.status === "canceled")).toBe(
-      true,
+      true
     );
   });
 
   it("emits uploadRetry when a child upload retries", async () => {
     const { provider } = createMockProvider({
       uploadBehavior: {
-        type: "failThenSucceed",
-        failures: 1,
+        async: true,
         error: Object.assign(new Error("transient"), {
           code: "storage/retry-limit-exceeded",
         }),
-        async: true,
+        failures: 1,
+        type: "failThenSucceed",
       },
     });
 
@@ -183,9 +179,9 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
       [createTestFile("1.txt")],
       () => ({
         path: "uploads/1.txt",
-        retry: { maxRetries: 1, initialDelayMs: 10, jitter: false },
+        retry: { initialDelayMs: 10, jitter: false, maxRetries: 1 },
       }),
-      { concurrency: 1 },
+      { concurrency: 1 }
     );
 
     const onUploadRetry = mock(() => {});
@@ -197,12 +193,12 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
     expect(onUploadRetry).toHaveBeenCalledWith(
       expect.objectContaining({
         attempt: 2,
-        maxAttempts: 2,
         delayMs: 10,
-      }),
+        maxAttempts: 2,
+      })
     );
 
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await delay(20);
     await waitForMicrotasks();
 
     expect(batch.snapshot().completedCount).toBe(1);
@@ -211,12 +207,12 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
   it("emits batch progress and per-upload events", async () => {
     const { provider } = createMockProvider({
       uploadBehavior: {
-        type: "success",
+        async: true,
         progress: [
           { bytesTransferred: 0, totalBytes: 5 },
           { bytesTransferred: 5, totalBytes: 5 },
         ],
-        async: true,
+        type: "success",
       },
     });
 
@@ -224,7 +220,7 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
     const batch = manager.uploadFiles(
       [createTestFile("1.txt"), createTestFile("2.txt")],
       (file) => ({ path: `uploads/${file.name}` }),
-      { concurrency: 2 },
+      { concurrency: 2 }
     );
 
     const onProgress = mock(() => {});
@@ -242,11 +238,11 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
     expect(onUploadSuccess.mock.calls.length).toBe(2);
   });
 
-  it("supports batch cancel, pause, and resume", async () => {
+  it("supports batch cancel, pause, and resume", () => {
     const { provider } = createMockProvider({
       uploadBehavior: {
-        type: "manual",
         onStart: () => {},
+        type: "manual",
       },
     });
 
@@ -258,7 +254,7 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
         createTestFile("3.txt"),
       ],
       (file) => ({ path: `uploads/${file.name}` }),
-      { concurrency: 1 },
+      { concurrency: 1 }
     );
 
     expect(batch.uploads[0]?.upload.status).toBe("uploading");
@@ -272,39 +268,41 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
 
     batch.cancel();
     expect(batch.uploads.every((h) => h.upload.status === "canceled")).toBe(
-      true,
+      true
     );
   });
 
   it("completes all 10 uploads without leaving any stuck in uploading", async () => {
     const { provider } = createMockProvider({
       uploadBehavior: {
-        type: "manual",
         onStart: (file, _options, callbacks) => {
           callbacks.onProgress(0, file.size);
-          queueMicrotask(async () => {
-            callbacks.onProgress(file.size, file.size);
-            await waitForMicrotasks();
-            callbacks.onSuccess(`https://example.com/${file.name}`);
+          queueMicrotask(() => {
+            void (async () => {
+              callbacks.onProgress(file.size, file.size);
+              await waitForMicrotasks();
+              callbacks.onSuccess(`https://example.com/${file.name}`);
+            })();
           });
         },
+        type: "manual",
       },
     });
 
     const manager = new StorageManager(provider);
     const files = Array.from({ length: 10 }, (_, i) =>
-      createTestFile(`${i + 1}.txt`),
+      createTestFile(`${i + 1}.txt`)
     );
     const batch = manager.uploadFiles(
       files,
       (file) => ({ path: `uploads/${file.name}` }),
-      { concurrency: 3 },
+      { concurrency: 3 }
     );
 
     await waitForBatchTerminal(batch);
 
     const stuck = batch.uploads.filter((handle) => {
-      const status = handle.upload.status;
+      const { status } = handle.upload;
       return status === "uploading" || status === "queued";
     });
     expect(stuck).toHaveLength(0);
@@ -314,24 +312,24 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
   it("does not restart canceled queued uploads and leave them stuck uploading", async () => {
     const { provider, spies } = createMockProvider({
       uploadBehavior: {
-        type: "manual",
         onStart: (_file, _options, callbacks) => {
           queueMicrotask(() => {
             callbacks.onProgress(1, 1);
             callbacks.onSuccess("https://example.com/file");
           });
         },
+        type: "manual",
       },
     });
 
     const manager = new StorageManager(provider);
     const files = Array.from({ length: 10 }, (_, i) =>
-      createTestFile(`${i + 1}.txt`),
+      createTestFile(`${i + 1}.txt`)
     );
     const batch = manager.uploadFiles(
       files,
       (file) => ({ path: `uploads/${file.name}` }),
-      { concurrency: 3 },
+      { concurrency: 3 }
     );
 
     batch.uploads[8]?.cancel();
@@ -342,7 +340,7 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
     expect(batch.uploads[8]?.upload.status).toBe("canceled");
     expect(batch.uploads[9]?.upload.status).toBe("canceled");
     expect(
-      batch.uploads.filter((h) => h.upload.status === "success"),
+      batch.uploads.filter((h) => h.upload.status === "success")
     ).toHaveLength(8);
     expect(spies.upload.mock.calls.length).toBe(8);
   });

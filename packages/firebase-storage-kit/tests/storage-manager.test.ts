@@ -11,7 +11,7 @@ describe("StorageManager", () => {
   describe("uploadFile", () => {
     it("returns a handle and tracks upload state through success", async () => {
       const { provider } = createMockProvider({
-        uploadBehavior: { type: "success", async: true },
+        uploadBehavior: { async: true, type: "success" },
       });
       const manager = new StorageManager(provider);
       const file = createTestFile("photo.jpg", "hello");
@@ -28,7 +28,7 @@ describe("StorageManager", () => {
 
       expect(handle.upload.status).toBe("success");
       expect(handle.upload.downloadURL).toBe(
-        "https://example.com/uploads/photo.jpg",
+        "https://example.com/uploads/photo.jpg"
       );
       expect(handle.upload.progress).toBe(100);
     });
@@ -37,7 +37,7 @@ describe("StorageManager", () => {
   describe("uploadFiles", () => {
     it("creates a batch linked to child uploads", async () => {
       const { provider } = createMockProvider({
-        uploadBehavior: { type: "success", async: true },
+        uploadBehavior: { async: true, type: "success" },
       });
       const manager = new StorageManager(provider);
       const files = [
@@ -49,14 +49,14 @@ describe("StorageManager", () => {
       const batch = manager.uploadFiles(
         files,
         (file) => ({ path: `uploads/${file.name}` }),
-        { concurrency: 2 },
+        { concurrency: 2 }
       );
 
       expect(manager.getState().batches).toHaveLength(1);
       expect(manager.getState().batches[0]?.id).toBe(batch.id);
       expect(manager.getState().uploads).toHaveLength(3);
       expect(
-        manager.getState().uploads.every((u) => u.batchId === batch.id),
+        manager.getState().uploads.every((u) => u.batchId === batch.id)
       ).toBe(true);
       expect(manager.getState().uploads.map((u) => u.path)).toEqual([
         "uploads/a.txt",
@@ -74,7 +74,7 @@ describe("StorageManager", () => {
   describe("subscribe", () => {
     it("notifies on changes but not on initial subscribe", async () => {
       const { provider } = createMockProvider({
-        uploadBehavior: { type: "success", async: true },
+        uploadBehavior: { async: true, type: "success" },
       });
       const manager = new StorageManager(provider);
       const listener = mock(() => {});
@@ -96,7 +96,7 @@ describe("StorageManager", () => {
 
     it("passes current state to listeners on each change", async () => {
       const { provider } = createMockProvider({
-        uploadBehavior: { type: "success", async: true },
+        uploadBehavior: { async: true, type: "success" },
       });
       const manager = new StorageManager(provider);
       const states: number[] = [];
@@ -137,12 +137,15 @@ describe("StorageManager", () => {
   describe("query delegation", () => {
     it("delegates exists to the provider", async () => {
       const { provider, spies } = createMockProvider({
-        exists: async (path) => path === "uploads/exists.jpg",
+        exists: async (path) => {
+          await Promise.resolve();
+          return path === "uploads/exists.jpg";
+        },
       });
       const manager = new StorageManager(provider);
 
-      await expect(manager.exists("uploads/exists.jpg")).resolves.toBe(true);
-      await expect(manager.exists("uploads/missing.jpg")).resolves.toBe(false);
+      expect(await manager.exists("uploads/exists.jpg")).toBe(true);
+      expect(await manager.exists("uploads/missing.jpg")).toBe(false);
       expect(spies.exists).toHaveBeenCalledWith("uploads/exists.jpg");
       expect(spies.exists).toHaveBeenCalledWith("uploads/missing.jpg");
     });
@@ -158,31 +161,35 @@ describe("StorageManager", () => {
 
     it("delegates getMetadata to the provider", async () => {
       const metadata = {
-        path: "uploads/photo.jpg",
-        size: 2048,
         contentType: "image/jpeg",
         createdAt: new Date("2024-01-01T00:00:00Z"),
+        path: "uploads/photo.jpg",
+        size: 2048,
         updatedAt: new Date("2024-01-02T00:00:00Z"),
       };
       const { provider, spies } = createMockProvider({
-        getMetadata: async () => metadata,
+        getMetadata: async () => {
+          await Promise.resolve();
+          return metadata;
+        },
       });
       const manager = new StorageManager(provider);
 
-      await expect(manager.getMetadata("uploads/photo.jpg")).resolves.toEqual(
-        metadata,
-      );
+      expect(await manager.getMetadata("uploads/photo.jpg")).toEqual(metadata);
       expect(spies.getMetadata).toHaveBeenCalledWith("uploads/photo.jpg");
     });
 
     it("delegates getDownloadURL to the provider", async () => {
       const { provider, spies } = createMockProvider({
-        getDownloadURL: async (path) => `https://cdn.example/${path}`,
+        getDownloadURL: async (path) => {
+          await Promise.resolve();
+          return `https://cdn.example/${path}`;
+        },
       });
       const manager = new StorageManager(provider);
 
-      await expect(manager.getDownloadURL("uploads/photo.jpg")).resolves.toBe(
-        "https://cdn.example/uploads/photo.jpg",
+      expect(await manager.getDownloadURL("uploads/photo.jpg")).toBe(
+        "https://cdn.example/uploads/photo.jpg"
       );
       expect(spies.getDownloadURL).toHaveBeenCalledWith("uploads/photo.jpg");
     });
@@ -190,14 +197,19 @@ describe("StorageManager", () => {
     it("propagates provider errors", async () => {
       const { provider } = createMockProvider({
         exists: async () => {
+          await Promise.resolve();
           throw new Error("network failure");
         },
       });
       const manager = new StorageManager(provider);
 
-      await expect(manager.exists("uploads/photo.jpg")).rejects.toThrow(
-        "network failure",
-      );
+      let caught: unknown;
+      try {
+        await manager.exists("uploads/photo.jpg");
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toEqual(new Error("network failure"));
     });
   });
 });

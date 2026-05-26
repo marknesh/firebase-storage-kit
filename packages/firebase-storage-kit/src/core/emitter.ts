@@ -9,11 +9,13 @@ export class Emitter<TEvents extends Record<string, unknown>> {
    * @returns A function to unsubscribe from the event.
    */
   on<K extends keyof TEvents>(event: K, listener: Listener<TEvents[K]>) {
-    if (!this.listeners[event]) {
-      this.listeners[event] = new Set();
+    let listeners = this.listeners[event];
+    if (!listeners) {
+      listeners = new Set();
+      this.listeners[event] = listeners;
     }
 
-    this.listeners[event]!.add(listener);
+    listeners.add(listener);
 
     return () => {
       this.listeners[event]?.delete(listener);
