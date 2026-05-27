@@ -17,7 +17,7 @@
     "version": "changeset version",
     "release": "turbo run build && changeset publish",
     "check": "bun run prepare:docs && ultracite check --type-aware",
-    "prepare:docs": "bun --cwd apps/docs fumadocs-mdx",
+    "prepare:docs": "bun --cwd apps/docs fumadocs-mdx && bun run --cwd apps/docs typegen",
     "fix": "ultracite fix --type-aware",
     "prepare": "husky"
   },
