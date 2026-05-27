@@ -16,13 +16,16 @@ bun install --frozen-lockfile
 
 ## Monorepo layout
 
-This is a Bun + Turbo monorepo. The published package lives at:
+This is a Bun + Turbo monorepo.
 
 ```
-packages/firebase-storage-kit/
+packages/firebase-storage-kit/   # published library
+apps/docs/                       # documentation site (Fumadocs + Next.js)
 ```
 
-All library source, tests, and the package README are in that directory.
+All library source, tests, and the package README are in `packages/firebase-storage-kit/`.
+
+The docs site lives in `apps/docs/`. Content is MDX under `apps/docs/content/docs/`.
 
 ## Development commands
 
@@ -33,6 +36,7 @@ bun run test       # run tests across packages
 bun run build      # build all packages
 bun run typecheck  # type-check all packages
 bun run dev        # watch mode (via Turbo)
+bun run dev:docs   # docs site only (http://localhost:3000/docs)
 ```
 
 To run tests for the library only:
@@ -72,6 +76,26 @@ Choose the appropriate bump:
 
 Docs-only or internal refactors that don't affect the published package do not need a changeset.
 
+## Documentation site
+
+The docs app uses [Fumadocs](https://www.fumadocs.dev/docs/) and deploys to Vercel.
+
+**Local development:**
+
+```bash
+bun run dev:docs
+```
+
+Open [http://localhost:3000/docs](http://localhost:3000/docs).
+
+**Vercel project settings:**
+
+- Root Directory: `apps/docs`
+- Install Command: `cd ../.. && bun install`
+- Build Command: `cd ../.. && bun run build --filter=docs`
+
+Edit pages in `apps/docs/content/docs/`. Navigation is controlled by `meta.json` files in each folder.
+
 ## Pull request checklist
 
 - [ ] I have linked the related issue (if applicable)
@@ -85,4 +109,4 @@ This project follows the [Contributor Covenant](/.github/CODE_OF_CONDUCT.md). By
 
 ## Questions
 
-Open an [issue](https://github.com/marknesh/firebase-storage-kit/issues) for bugs or feature requests. For usage help, see the [README](/packages/firebase-storage-kit/README.md).
+Open an [issue](https://github.com/marknesh/firebase-storage-kit/issues) for bugs or feature requests. For usage help, see the [documentation site](https://firebase-storage-kit.vercel.app/docs) or the [README](/packages/firebase-storage-kit/README.md).

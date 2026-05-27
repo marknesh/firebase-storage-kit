@@ -1,0 +1,11 @@
+{
+  "title": "Guides",
+  "pages": [
+    "upload-lifecycle",
+    "manager-state",
+    "batch-uploads",
+    "retries",
+    "custom-metadata",
+    "querying-files"
+  ]
+}

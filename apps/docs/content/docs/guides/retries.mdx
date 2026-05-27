@@ -1,0 +1,81 @@
+---
+title: Retries
+description: Automatic retry behavior and how to customize or disable it.
+---
+
+Uploads **retry transient failures automatically** so brief network blips do not fail the whole upload. By default you get 3 retries (4 attempts total) with exponential backoff and jitter.
+
+## Default behavior
+
+No configuration needed — retries are on by default:
+
+```ts
+const handle = manager.uploadFile(file, { path: `uploads/${file.name}` });
+```
+
+When a retryable error occurs, the upload status becomes `retrying`, then `uploading` again after the delay.
+
+## Listen for retries
+
+```ts
+handle.on("retry", ({ attempt, maxAttempts, delayMs, error }) => {
+  console.log(`Retry ${attempt}/${maxAttempts} in ${delayMs}ms`);
+  console.error(error.message);
+});
+```
+
+## Disable retries
+
+```ts
+manager.uploadFile(file, {
+  path: `uploads/${file.name}`,
+  retry: false,
+});
+```
+
+## Customize retry settings
+
+```ts
+manager.uploadFile(file, {
+  path: `uploads/${file.name}`,
+  retry: {
+    maxRetries: 5,
+    initialDelayMs: 700,
+    maxDelayMs: 30_000,
+    jitter: true,
+    isRetryable: (error) => {
+      // custom logic — return false to stop retrying
+      return true;
+    },
+  },
+});
+```
+
+| Option           | Default  | Description                              |
+| ---------------- | -------- | ---------------------------------------- |
+| `maxRetries`     | `3`      | Extra attempts after the first failure   |
+| `initialDelayMs` | `1000`   | First backoff delay                      |
+| `maxDelayMs`     | `30000`  | Maximum delay between attempts           |
+| `jitter`         | `true`   | Randomize delay to avoid thundering herd |
+| `isRetryable`    | built-in | Override which errors retry              |
+
+## What gets retried
+
+**Retryable** (examples): `storage/unknown`, `storage/retry-limit-exceeded`, network errors without a Firebase code.
+
+**Not retryable** (examples): `storage/unauthorized`, `storage/unauthenticated`, `storage/quota-exceeded`, `storage/invalid-argument`.
+
+<Callout type="warn">
+  Permission and quota errors will not succeed on retry. Fix your Storage rules
+  or quota instead of increasing `maxRetries`.
+</Callout>
+
+See [Troubleshooting](/docs/troubleshooting) for a fuller list of error codes.
+
+## Related
+
+<Cards>
+  <Card title="Upload lifecycle" href="/docs/guides/upload-lifecycle">
+    The `retrying` status and pause during backoff.
+  </Card>
+</Cards>

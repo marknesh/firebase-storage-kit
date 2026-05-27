@@ -1,0 +1,4 @@
+{
+  "title": "API Reference",
+  "pages": ["storage-manager", "upload-handle", "batch-handle", "types"]
+}
