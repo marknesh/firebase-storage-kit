@@ -1,0 +1,100 @@
+---
+title: Batch uploads
+description: Upload many files at once with concurrency and error handling.
+---
+
+Use **batch uploads** when the user selects multiple files — photo galleries, document folders, or bulk imports. One call starts every file; you control how many run in parallel.
+
+## Basic batch
+
+```ts
+const batch = manager.uploadFiles(
+  files,
+  (file) => ({ path: `uploads/${file.name}` }),
+  { concurrency: 3, continueOnError: true }
+);
+
+batch.on("progress", (snapshot) => {
+  console.log(`${Math.round(snapshot.totalProgress * 100)}% overall`);
+});
+
+batch.on("success", (snapshot) => {
+  console.log(
+    `${snapshot.completedCount} done, ${snapshot.failedCount} failed`
+  );
+});
+```
+
+### Arguments
+
+1. **`files`** — array of browser `File` objects
+2. **`optionsFor`** — function that returns `UploadOptions` per file (path, retry, metadata)
+3. **`batchOptions`** (optional) — concurrency and error behavior
+
+## Batch options
+
+| Option            | Default | Description                           |
+| ----------------- | ------- | ------------------------------------- |
+| `concurrency`     | `3`     | Max simultaneous uploads              |
+| `continueOnError` | `true`  | Keep other files running if one fails |
+
+### continueOnError: true (default)
+
+Other files keep uploading when one fails. When **every** file has finished, the batch fires `success`. Check each child upload's status to see which succeeded or failed.
+
+### continueOnError: false
+
+The first failure stops remaining files and the batch fires `error`.
+
+## Batch events
+
+| Event           | Payload       | When                                                    |
+| --------------- | ------------- | ------------------------------------------------------- |
+| `progress`      | `UploadBatch` | Aggregate progress changed                              |
+| `change`        | `UploadBatch` | Any batch property changed                              |
+| `uploadSuccess` | `UploadItem`  | One file succeeded                                      |
+| `uploadError`   | `UploadItem`  | One file failed                                         |
+| `uploadRetry`   | retry details | One file is retrying                                    |
+| `success`       | `UploadBatch` | All files settled (normal end)                          |
+| `error`         | `UploadBatch` | Batch stopped due to failure (`continueOnError: false`) |
+
+## Per-file options in a batch
+
+```ts
+manager.uploadFiles(
+  files,
+  (file, index) => ({
+    path: `users/${userId}/${file.name}`,
+    customMetadata: { index: String(index) },
+    retry: { maxRetries: 5 },
+  }),
+  { concurrency: 2 }
+);
+```
+
+## Pause and resume the batch
+
+```ts
+batch.pause();
+batch.resume();
+```
+
+This pauses or resumes all active child uploads in the batch.
+
+## Snapshot
+
+```ts
+const snapshot = batch.snapshot();
+// { id, uploads, totalProgress, completedCount, failedCount }
+```
+
+## Related
+
+<Cards>
+  <Card title="Custom metadata" href="/docs/guides/custom-metadata">
+    Attach metadata per file in a batch.
+  </Card>
+  <Card title="BatchHandle API" href="/docs/api/batch-handle">
+    Full method and event reference.
+  </Card>
+</Cards>

@@ -1,0 +1,88 @@
+---
+title: BatchHandle
+description: Control and observe a multi-file upload batch.
+---
+
+A `BatchHandle` is returned from `StorageManager.uploadFiles`. It coordinates multiple child `UploadHandle` instances.
+
+## Properties
+
+| Property  | Type             | Description                               |
+| --------- | ---------------- | ----------------------------------------- |
+| `id`      | `string`         | Batch identifier                          |
+| `uploads` | `UploadHandle[]` | Child handles (same order as input files) |
+
+## Methods
+
+### snapshot
+
+```ts
+snapshot(): UploadBatch
+```
+
+Returns current aggregate state: `totalProgress`, `completedCount`, `failedCount`, and child upload items.
+
+### pause
+
+```ts
+pause(): void
+```
+
+Pauses all active uploads in the batch.
+
+### resume
+
+```ts
+resume(): void
+```
+
+Resumes all paused uploads in the batch.
+
+### on
+
+Subscribe to batch-level events (same pattern as `UploadHandle.on`).
+
+## Events
+
+| Event           | Payload            | Description                                  |
+| --------------- | ------------------ | -------------------------------------------- |
+| `progress`      | `UploadBatch`      | Aggregate progress changed                   |
+| `change`        | `UploadBatch`      | Any batch property changed                   |
+| `uploadSuccess` | `UploadItem`       | One child succeeded                          |
+| `uploadError`   | `UploadItem`       | One child failed                             |
+| `uploadRetry`   | `UploadRetryEvent` | One child is retrying                        |
+| `success`       | `UploadBatch`      | All children settled                         |
+| `error`         | `UploadBatch`      | Batch failed fast (`continueOnError: false`) |
+
+## BatchOptions
+
+Passed as the third argument to `uploadFiles`:
+
+```ts
+interface BatchOptions {
+  concurrency?: number; // default 3
+  continueOnError?: boolean; // default true
+}
+```
+
+## Example
+
+```ts
+const batch = manager.uploadFiles(
+  files,
+  (f) => ({ path: `uploads/${f.name}` }),
+  { concurrency: 2 }
+);
+
+batch.on("progress", (s) => console.log(s.totalProgress));
+batch.on("uploadSuccess", (item) => console.log(item.path));
+batch.on("success", (s) => console.log(s.completedCount));
+```
+
+## Related
+
+<Cards>
+  <Card title="Batch uploads" href="/docs/guides/batch-uploads">
+    Guide with examples and error handling.
+  </Card>
+</Cards>

@@ -1,0 +1,79 @@
+---
+title: Track all uploads
+description: Subscribe to global upload and batch state from StorageManager.
+---
+
+Use manager-level state when you need a **dashboard** or **global progress bar** that shows every active upload — not just one handle.
+
+## Two ways to observe uploads
+
+| Approach                                | Best for                                    |
+| --------------------------------------- | ------------------------------------------- |
+| `handle.on(...)` on each `UploadHandle` | UI tied to a single file input              |
+| `manager.subscribe(...)`                | App-wide upload list, nav badge, admin view |
+
+You can use both at the same time. They reflect the same underlying state.
+
+## Subscribe to changes
+
+```ts
+const unsubscribe = manager.subscribe((state) => {
+  console.log(state.uploads);
+  console.log(state.batches);
+});
+
+// later, when your component unmounts:
+unsubscribe();
+```
+
+The listener runs immediately on subscribe and again whenever any upload or batch changes.
+
+## Read state once
+
+```ts
+const state = manager.getState();
+```
+
+Returns the same shape as the subscribe callback:
+
+```ts
+interface StorageState {
+  uploads: UploadItem[];
+  batches: UploadBatch[];
+}
+```
+
+## Example: active upload count
+
+```tsx
+function UploadBadge({ manager }: { manager: StorageManager }) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    return manager.subscribe((state) => {
+      const active = state.uploads.filter(
+        (u) => u.status === "uploading" || u.status === "queued"
+      );
+      setCount(active.length);
+    });
+  }, [manager]);
+
+  if (count === 0) return null;
+  return <span>{count} uploading</span>;
+}
+```
+
+## Batch snapshots
+
+`state.batches` contains aggregated batch info (`totalProgress`, `completedCount`, `failedCount`). For per-file detail inside a batch, use the child handles on the `BatchHandle` or inspect `batch.uploads`.
+
+## Related
+
+<Cards>
+  <Card title="Single upload" href="/docs/getting-started/single-upload">
+    Per-handle events in detail.
+  </Card>
+  <Card title="Batch uploads" href="/docs/guides/batch-uploads">
+    Batch-level events and snapshots.
+  </Card>
+</Cards>

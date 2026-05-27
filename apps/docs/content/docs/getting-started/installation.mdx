@@ -1,0 +1,53 @@
+---
+title: Installation
+description: Install firebase-storage-kit and its Firebase peer dependency.
+---
+
+Install **firebase-storage-kit** together with **firebase**. The library does not include Firebase — your app must provide it.
+
+## npm
+
+```bash
+npm install firebase firebase-storage-kit
+```
+
+## pnpm
+
+```bash
+pnpm add firebase firebase-storage-kit
+```
+
+## Yarn
+
+```bash
+yarn add firebase firebase-storage-kit
+```
+
+## Bun
+
+```bash
+bun add firebase firebase-storage-kit
+```
+
+## TypeScript
+
+TypeScript is supported out of the box. Types ship with the package — no `@types` package needed.
+
+## Verify the import
+
+```ts
+import { StorageManager } from "firebase-storage-kit";
+import { getStorage } from "firebase/storage";
+
+const manager = new StorageManager(getStorage(app));
+```
+
+If this compiles and your Firebase app is initialized, you are ready to upload.
+
+## Next step
+
+<Cards>
+  <Card title="Single upload" href="/docs/getting-started/single-upload">
+    Upload a file and listen for progress and success.
+  </Card>
+</Cards>

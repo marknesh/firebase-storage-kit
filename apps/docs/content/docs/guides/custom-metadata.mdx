@@ -1,0 +1,65 @@
+---
+title: Custom metadata
+description: Attach string key-value metadata to uploaded files.
+---
+
+**Custom metadata** lets you store small, file-specific tags on a Storage object — owner ID, source app, content type label, etc. Set it at upload time and read it back with `getMetadata`.
+
+## Set metadata on upload
+
+```ts
+const handle = manager.uploadFile(file, {
+  path: `uploads/${file.name}`,
+  customMetadata: {
+    owner: "user-123",
+    source: "mobile-app",
+  },
+});
+```
+
+## Read metadata later
+
+```ts
+const meta = await manager.getMetadata(`uploads/${file.name}`);
+console.log(meta.customMetadata?.owner); // "user-123"
+```
+
+## Batch uploads
+
+Pass `customMetadata` in the per-file options:
+
+```ts
+manager.uploadFiles(files, (file) => ({
+  path: `uploads/${file.name}`,
+  customMetadata: { uploadedBy: userId },
+}));
+```
+
+## Important rules
+
+<Callout type="warn">
+  **String values only.** Keys and values must both be strings (`Record<string, string>`). Numbers and objects are not supported.
+</Callout>
+
+<Callout type="warn">
+  **Reserved keys.** Do not set Firebase internal keys such as
+  `firebaseStorageDownloadTokens`. Firebase rejects them with a 400 error.
+</Callout>
+
+<Callout>
+  **Small data only.** Custom metadata is for lightweight tags. For rich or
+  queryable data, use Firestore or Realtime Database.
+</Callout>
+
+<Callout>
+  **Security rules.** Who can read or write metadata is controlled by your
+  Storage security rules. Lock down sensitive fields in production.
+</Callout>
+
+## Related
+
+<Cards>
+  <Card title="Querying files" href="/docs/guides/querying-files">
+    exists, getMetadata, getDownloadURL, and delete.
+  </Card>
+</Cards>

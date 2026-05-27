@@ -1,0 +1,124 @@
+---
+title: Types
+description: Shared TypeScript types exported by firebase-storage-kit.
+---
+
+Key types re-exported from `firebase-storage-kit`. Import them alongside classes:
+
+```ts
+import type {
+  UploadOptions,
+  UploadItem,
+  StorageState,
+} from "firebase-storage-kit";
+```
+
+## UploadOptions
+
+Options for a single upload (`uploadFile` or per-file in `uploadFiles`):
+
+```ts
+interface UploadOptions {
+  path: string;
+  retry?: RetryOptions | false;
+  customMetadata?: Record<string, string>;
+}
+```
+
+## RetryOptions
+
+```ts
+interface RetryOptions {
+  maxRetries?: number;
+  initialDelayMs?: number;
+  maxDelayMs?: number;
+  jitter?: boolean;
+  isRetryable?: (error: Error) => boolean;
+}
+```
+
+## UploadItem
+
+Live state for one file:
+
+```ts
+interface UploadItem {
+  id: string;
+  file: File;
+  path: string;
+  progress: number;
+  bytesTransferred: number;
+  totalBytes: number;
+  status: UploadStatus;
+  downloadURL?: string;
+  error?: Error;
+  retryAttempt?: number;
+  batchId?: string;
+}
+```
+
+## UploadStatus
+
+```ts
+type UploadStatus =
+  | "queued"
+  | "uploading"
+  | "retrying"
+  | "paused"
+  | "success"
+  | "error"
+  | "canceled";
+```
+
+## StorageState
+
+```ts
+interface StorageState {
+  uploads: UploadItem[];
+  batches: UploadBatch[];
+}
+```
+
+## UploadBatch
+
+```ts
+interface UploadBatch {
+  id: string;
+  uploads: UploadItem[];
+  totalProgress: number;
+  completedCount: number;
+  failedCount: number;
+}
+```
+
+## FileMetadata
+
+```ts
+interface FileMetadata {
+  name: string;
+  bucket: string;
+  size: number;
+  contentType?: string;
+  timeCreated?: string;
+  updated?: string;
+  customMetadata?: Record<string, string>;
+}
+```
+
+## Advanced exports
+
+These are exported for testing and advanced use:
+
+- `DEFAULT_RETRY_OPTIONS`
+- `resolveRetryOptions`
+- `computeRetryDelay`
+- `getStorageErrorCode`
+- `isRetryableStorageError`
+
+## Related
+
+<Cards>
+  <Card title="StorageManager" href="/docs/api/storage-manager">
+    Where these types are used.
+  </Card>
+</Cards>

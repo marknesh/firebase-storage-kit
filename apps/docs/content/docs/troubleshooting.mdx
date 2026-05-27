@@ -1,0 +1,69 @@
+---
+title: Troubleshooting
+description: Common errors and how to fix them.
+---
+
+Quick fixes for problems you might hit on your first integration.
+
+## Upload fails immediately with permission error
+
+**Symptoms:** `storage/unauthorized` or `storage/unauthenticated` in the error; retries do not help.
+
+**Fix:**
+
+1. Confirm the user is signed in if your rules require auth.
+2. Review [Storage security rules](https://firebase.google.com/docs/storage/security) for the path you pass to `uploadFile`.
+3. Do not increase retry counts — permission errors are not retryable.
+
+## exists() throws instead of returning false
+
+**Expected:** `exists` returns `false` only when the object is missing.
+
+**If it throws:** You likely have a permission or network error. Wrap in try/catch and distinguish `storage/object-not-found` from other codes.
+
+## Custom metadata rejected (400)
+
+**Symptoms:** Upload fails when you set `customMetadata`.
+
+**Fix:**
+
+- Use string keys and string values only.
+- Remove reserved Firebase keys like `firebaseStorageDownloadTokens`.
+- See [Custom metadata](/docs/guides/custom-metadata).
+
+## Uploads never finish / stuck at 0%
+
+**Check:**
+
+1. Firebase app and Storage bucket are initialized correctly.
+2. File object is valid (not empty, from a real user selection).
+3. Browser network tab for blocked requests or CORS issues.
+4. Storage rules allow write to the target path.
+
+## Retries exhausted but network seems fine
+
+Some Firebase error codes are **not** retried (`storage/invalid-argument`, quota errors, etc.). Log `error` in the `error` event and check `error.code` if present (Firebase Storage errors include a `code` property).
+
+Use the exported helper in advanced cases:
+
+```ts
+import { getStorageErrorCode } from "firebase-storage-kit";
+
+handle.on("error", (upload) => {
+  console.log(getStorageErrorCode(upload.error ?? new Error()));
+});
+```
+
+## Batch shows success but some files failed
+
+With `continueOnError: true` (the default), the batch `success` event means **all files have settled** — not that all succeeded. Inspect each upload's `status` or listen for `uploadError`.
+
+## Memory / too many uploads
+
+Reuse one `StorageManager` instance. Unsubscribe from `manager.subscribe` when components unmount. For very large batches, lower `concurrency`.
+
+## Still stuck?
+
+- Read the [GitHub issues](https://github.com/marknesh/firebase-storage-kit/issues)
+- Compare your setup with [Single upload](/docs/getting-started/single-upload)
+- Check the package [README](https://github.com/marknesh/firebase-storage-kit/blob/main/packages/firebase-storage-kit/README.md)

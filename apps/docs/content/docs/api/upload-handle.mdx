@@ -1,0 +1,95 @@
+---
+title: UploadHandle
+description: Control and observe a single file upload.
+---
+
+An `UploadHandle` is returned from `StorageManager.uploadFile`. Use it to pause, resume, cancel, and listen for progress.
+
+## Properties
+
+| Property | Type         | Description                          |
+| -------- | ------------ | ------------------------------------ |
+| `upload` | `UploadItem` | Live upload state (mutates in place) |
+
+## Methods
+
+### pause
+
+```ts
+pause(): void
+```
+
+Pauses the underlying Firebase upload task.
+
+### resume
+
+```ts
+resume(): void
+```
+
+Resumes a paused upload.
+
+### cancel
+
+```ts
+cancel(): void
+```
+
+Permanently cancels the upload.
+
+### on
+
+```ts
+on<K extends keyof UploadHandleEvents>(
+  event: K,
+  listener: (payload: UploadHandleEvents[K]) => void
+): this
+```
+
+Subscribe to events. Returns `this` for chaining.
+
+## Events
+
+| Event          | Payload            | Description      |
+| -------------- | ------------------ | ---------------- |
+| `progress`     | `UploadItem`       | Progress updated |
+| `success`      | `UploadItem`       | Upload completed |
+| `error`        | `UploadItem`       | Upload failed    |
+| `canceled`     | `UploadItem`       | Upload canceled  |
+| `statusChange` | `UploadItem`       | Status changed   |
+| `retry`        | `UploadRetryEvent` | Retry scheduled  |
+
+### UploadRetryEvent
+
+```ts
+interface UploadRetryEvent {
+  upload: UploadItem;
+  error: Error;
+  attempt: number;
+  maxAttempts: number;
+  delayMs: number;
+}
+```
+
+## Example
+
+```ts
+const handle = manager.uploadFile(file, { path: "uploads/photo.jpg" });
+
+handle
+  .on("progress", (u) => updateBar(u.progress))
+  .on("success", (u) => saveUrl(u.downloadURL))
+  .on("error", (u) => showError(u.error));
+
+handle.pause();
+handle.resume();
+handle.cancel();
+```
+
+## Related
+
+<Cards>
+  <Card title="Upload lifecycle" href="/docs/guides/upload-lifecycle">
+    Status values and control flow.
+  </Card>
+</Cards>

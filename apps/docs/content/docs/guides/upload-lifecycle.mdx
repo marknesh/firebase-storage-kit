@@ -1,0 +1,77 @@
+---
+title: Upload lifecycle
+description: Pause, resume, cancel, and understand upload status values.
+---
+
+Each upload moves through a **status** lifecycle. The `UploadHandle` returned from `uploadFile` lets you control the upload and react to every transition.
+
+## Upload statuses
+
+| Status      | Meaning                                  |
+| ----------- | ---------------------------------------- |
+| `queued`    | Created but not yet uploading            |
+| `uploading` | Bytes are being transferred              |
+| `retrying`  | Waiting to retry after a transient error |
+| `paused`    | Paused by you (or during retry backoff)  |
+| `success`   | Finished; `downloadURL` is available     |
+| `error`     | Failed (after retries, if enabled)       |
+| `canceled`  | Stopped by you or the batch              |
+
+Listen for any status change:
+
+```ts
+handle.on("statusChange", (upload) => {
+  console.log(upload.status);
+});
+```
+
+## Pause and resume
+
+```ts
+handle.pause();
+// ... later
+handle.resume();
+```
+
+While paused, no new bytes are sent. Progress stays where it was until you resume.
+
+## Cancel
+
+```ts
+handle.cancel();
+```
+
+Cancel stops the upload permanently. The handle fires `canceled` and will not retry.
+
+<Callout type="warn">
+  Cancel is irreversible for that upload handle. To upload again, call
+  `uploadFile` with a new handle.
+</Callout>
+
+## Progress fields
+
+On every `progress` event, the `UploadItem` includes:
+
+| Field              | Type      | Description         |
+| ------------------ | --------- | ------------------- |
+| `progress`         | `number`  | 0 to 1              |
+| `bytesTransferred` | `number`  | Bytes sent so far   |
+| `totalBytes`       | `number`  | Total file size     |
+| `path`             | `string`  | Storage object path |
+| `downloadURL`      | `string?` | Set on success      |
+| `error`            | `Error?`  | Set on failure      |
+
+## Batch uploads
+
+When a file is part of a batch, `upload.batchId` links it to the parent `BatchHandle`. Individual files still have their own status and can be paused/resumed through the child handle.
+
+## Related
+
+<Cards>
+  <Card title="Batch uploads" href="/docs/guides/batch-uploads">
+    Pause or resume an entire batch at once.
+  </Card>
+  <Card title="Retries" href="/docs/guides/retries">
+    What happens when an upload fails mid-flight.
+  </Card>
+</Cards>

@@ -1,0 +1,69 @@
+---
+title: What you need
+description: Prerequisites before using firebase-storage-kit in your app.
+---
+
+Use this page when you are setting up a new project or checking whether your existing Firebase app is ready.
+
+## Firebase project
+
+You need a Firebase project with **Cloud Storage** enabled. If you have not done this yet:
+
+1. Create a project in the [Firebase console](https://console.firebase.google.com/).
+2. Register a web app and copy your Firebase config.
+3. Enable Storage and pick a default bucket.
+
+Initialize Firebase in your app (standard setup):
+
+```ts
+import { initializeApp } from "firebase/app";
+import { getStorage } from "firebase/storage";
+
+const app = initializeApp({
+  apiKey: "...",
+  authDomain: "...",
+  projectId: "...",
+  storageBucket: "...",
+});
+
+export const storage = getStorage(app);
+```
+
+## Peer dependency
+
+`firebase-storage-kit` expects **Firebase JS SDK v12+** as a peer dependency. Install both packages:
+
+```bash
+npm install firebase firebase-storage-kit
+```
+
+The library imports `FirebaseStorage` from `firebase/storage` but does not bundle Firebase for you.
+
+## Storage security rules
+
+Uploads and metadata reads are governed by your [Storage security rules](https://firebase.google.com/docs/storage/security). At minimum, make sure authenticated users can write to the paths you use in `uploadFile`:
+
+```
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /uploads/{userId}/{fileName} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+```
+
+Adjust paths and conditions to match your app. Without valid rules, uploads fail with permission errors that retries cannot fix.
+
+## Browser environment
+
+This library is built for **browser uploads** using Firebase's resumable upload API. It expects `File` objects (from `<input type="file">` or drag-and-drop) and runs in client-side JavaScript.
+
+## Next step
+
+<Cards>
+  <Card title="Installation" href="/docs/getting-started/installation">
+    Install the package with npm, pnpm, Yarn, or Bun.
+  </Card>
+</Cards>

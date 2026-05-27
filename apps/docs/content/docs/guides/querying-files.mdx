@@ -1,0 +1,70 @@
+---
+title: Querying files
+description: Check if files exist, read metadata, get download URLs, and delete objects.
+---
+
+`StorageManager` includes helpers for common **read and delete** operations on objects already in your bucket.
+
+## Check if a file exists
+
+```ts
+const exists = await manager.exists("uploads/photo.jpg");
+```
+
+| Result  | Meaning          |
+| ------- | ---------------- |
+| `true`  | Object exists    |
+| `false` | Object not found |
+
+<Callout type="warn">
+  `exists` returns `false` only for **not found**. Permission errors, network
+  failures, and other problems **throw** — handle them with try/catch.
+</Callout>
+
+## Get metadata
+
+```ts
+const meta = await manager.getMetadata("uploads/photo.jpg");
+console.log(meta.size, meta.contentType, meta.customMetadata);
+```
+
+Throws if the object does not exist.
+
+## Get a download URL
+
+```ts
+const url = await manager.getDownloadURL("uploads/photo.jpg");
+```
+
+Returns a public or tokenized URL depending on your bucket rules and object ACLs.
+
+## Delete a file
+
+```ts
+await manager.delete("uploads/old.jpg");
+```
+
+## Full example
+
+```ts
+const path = "uploads/photo.jpg";
+
+if (await manager.exists(path)) {
+  const meta = await manager.getMetadata(path);
+  const url = await manager.getDownloadURL(path);
+  console.log(meta.size, url);
+}
+
+await manager.delete("uploads/old.jpg");
+```
+
+## Related
+
+<Cards>
+  <Card title="Custom metadata" href="/docs/guides/custom-metadata">
+    Writing and reading customMetadata.
+  </Card>
+  <Card title="StorageManager API" href="/docs/api/storage-manager">
+    Method signatures and return types.
+  </Card>
+</Cards>

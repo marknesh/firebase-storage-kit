@@ -1,0 +1,110 @@
+---
+title: Single upload
+description: Upload one file and track progress from start to finish.
+---
+
+This guide walks through a **single-file upload** with `uploadFile`. You will create a manager, start an upload, and react to progress and completion.
+
+## 1. Create a StorageManager
+
+Pass your Firebase Storage instance to the constructor:
+
+```ts
+import { getStorage } from "firebase/storage";
+import { StorageManager } from "firebase-storage-kit";
+
+const storage = getStorage(app);
+const manager = new StorageManager(storage);
+```
+
+Keep one `StorageManager` per app (or per logical storage bucket). Reuse it for all uploads in that context.
+
+## 2. Start the upload
+
+`uploadFile` takes a browser `File` and options with a **storage path**:
+
+```ts
+const handle = manager.uploadFile(file, {
+  path: `uploads/${file.name}`,
+});
+```
+
+The path is the object key inside your bucket — the same path you would use with raw Firebase APIs.
+
+## 3. Listen for events
+
+Use `.on(event, callback)` on the returned **UploadHandle**:
+
+```ts
+handle.on("progress", (upload) => {
+  const percent = Math.round(upload.progress * 100);
+  console.log(
+    `${percent}% (${upload.bytesTransferred} / ${upload.totalBytes} bytes)`
+  );
+});
+
+handle.on("success", (upload) => {
+  console.log("Done!", upload.downloadURL);
+});
+
+handle.on("error", (upload) => {
+  console.error("Failed:", upload.error?.message);
+});
+```
+
+### Common events
+
+| Event          | When it fires                                  |
+| -------------- | ---------------------------------------------- |
+| `progress`     | Bytes transferred changed                      |
+| `success`      | Upload finished; `downloadURL` is set          |
+| `error`        | Upload failed after retries (if any)           |
+| `canceled`     | You called `cancel()` or the batch was stopped |
+| `statusChange` | Status changed (e.g. `uploading` → `paused`)   |
+| `retry`        | A retry is scheduled after a transient failure |
+
+## 4. Wire up a file input (React example)
+
+```tsx
+function UploadButton() {
+  const manager = useMemo(() => new StorageManager(getStorage(app)), []);
+
+  const onChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const handle = manager.uploadFile(file, { path: `uploads/${file.name}` });
+
+    handle.on("progress", (upload) => {
+      // update UI with upload.progress (0–1)
+    });
+
+    handle.on("success", (upload) => {
+      // use upload.downloadURL
+    });
+  };
+
+  return <input type="file" onChange={onChange} />;
+}
+```
+
+## What happens under the hood
+
+1. The manager creates an `UploadHandle` with status `queued`, then starts the Firebase resumable upload.
+2. Progress callbacks update `bytesTransferred`, `totalBytes`, and `progress` (0 to 1).
+3. On success, `status` becomes `success` and `downloadURL` is populated.
+4. Transient network errors trigger automatic retries (see [Retries](/docs/guides/retries)).
+
+## Next steps
+
+<Cards>
+  <Card title="Upload lifecycle" href="/docs/guides/upload-lifecycle">
+    Pause, resume, and cancel uploads.
+  </Card>
+  <Card title="Track all uploads" href="/docs/guides/manager-state">
+    Subscribe to global upload state.
+  </Card>
+  <Card title="Batch uploads" href="/docs/guides/batch-uploads">
+    Upload multiple files at once.
+  </Card>
+</Cards>

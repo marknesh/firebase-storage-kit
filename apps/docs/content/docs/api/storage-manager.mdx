@@ -1,0 +1,96 @@
+---
+title: StorageManager
+description: Main entry point for uploads and file operations.
+---
+
+`StorageManager` is the class you instantiate with a Firebase Storage instance. It starts uploads, exposes global state, and provides file query helpers.
+
+## Constructor
+
+```ts
+import { getStorage } from "firebase/storage";
+import { StorageManager } from "firebase-storage-kit";
+
+const manager = new StorageManager(getStorage(app));
+```
+
+## Methods
+
+### uploadFile
+
+```ts
+uploadFile(file: File, options: UploadOptions): UploadHandle
+```
+
+Starts a single resumable upload. Returns an [UploadHandle](/docs/api/upload-handle) immediately — the upload runs asynchronously.
+
+### uploadFiles
+
+```ts
+uploadFiles(
+  files: File[],
+  optionsFor: (file: File, index: number) => UploadOptions,
+  batchOptions?: BatchOptions
+): BatchHandle
+```
+
+Uploads multiple files as one batch. See [BatchHandle](/docs/api/batch-handle).
+
+### getState
+
+```ts
+getState(): StorageState
+```
+
+Returns `{ uploads, batches }` — current snapshots of all tracked uploads and batches.
+
+### subscribe
+
+```ts
+subscribe(listener: (state: StorageState) => void): () => void
+```
+
+Calls `listener` on every state change. Returns an unsubscribe function.
+
+### exists
+
+```ts
+exists(path: string): Promise<boolean>
+```
+
+`true` if the object exists; `false` if not found; throws on other errors.
+
+### getMetadata
+
+```ts
+getMetadata(path: string): Promise<FileMetadata>
+```
+
+Returns object metadata. Throws if not found.
+
+### getDownloadURL
+
+```ts
+getDownloadURL(path: string): Promise<string>
+```
+
+Returns a download URL for the object at `path`.
+
+### delete
+
+```ts
+delete(path: string): Promise<void>
+```
+
+Deletes the object at `path`.
+
+## Related
+
+<Cards>
+  <Card title="Single upload" href="/docs/getting-started/single-upload">
+    Practical walkthrough.
+  </Card>
+  <Card title="Types" href="/docs/api/types">
+    UploadOptions, StorageState, and more.
+  </Card>
+</Cards>
