@@ -16,7 +16,8 @@
     "changeset": "changeset",
     "version": "changeset version",
     "release": "turbo run build && changeset publish",
-    "check": "ultracite check --type-aware",
+    "check": "bun run prepare:docs && ultracite check --type-aware",
+    "prepare:docs": "bun --cwd apps/docs fumadocs-mdx",
     "fix": "ultracite fix --type-aware",
     "prepare": "husky"
   },
@@ -37,7 +38,8 @@
     "typescript": "^6.0.3"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,json,jsonc,css}": "ultracite fix --type-aware"
+    "*.{js,jsx,ts,tsx}": "ultracite fix --type-aware",
+    "*.{json,jsonc,css}": "oxfmt"
   },
   "engines": {
     "node": ">=24.16.0"
