@@ -32,6 +32,18 @@ handle.on("success", (upload) => {
 });
 ```
 
+### React
+
+```tsx
+import { useStorageManager, useUpload } from "firebase-storage-kit/react";
+
+const manager = useStorageManager(storage);
+const handle = manager.uploadFile(file, { path: `uploads/${file.name}` });
+const upload = useUpload(handle);
+```
+
+See [React hooks](https://firebase-storage-kit.vercel.app/docs/guides/react-hooks).
+
 ## Learn more
 
 - [Single upload](https://firebase-storage-kit.vercel.app/docs/getting-started/single-upload)
