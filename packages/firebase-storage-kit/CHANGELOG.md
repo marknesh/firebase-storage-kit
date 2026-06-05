@@ -1,5 +1,11 @@
 # firebase-storage-kit
 
+## 1.4.0
+
+### Minor Changes
+
+- [#32](https://github.com/marknesh/firebase-storage-kit/pull/32) [`b3fcd05`](https://github.com/marknesh/firebase-storage-kit/commit/b3fcd05181bbd735617037ded89791827cac9e74) Thanks [@marknesh](https://github.com/marknesh)! - Add React hooks via `firebase-storage-kit/react`: `useStorageManager`, `useStorageState`, `useUpload`, `useBatch`, and optional `StorageManagerProvider`. React is an optional peer dependency.
+
 ## 1.3.0
 
 ### Minor Changes
