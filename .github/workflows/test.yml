@@ -40,5 +40,5 @@ jobs:
       - name: Run tests
         run: bun run test
 
-      - name: Build docs
-        run: bun run build --filter=docs
+      - name: Build
+        run: bun run build

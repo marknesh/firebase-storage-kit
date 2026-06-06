@@ -3,6 +3,7 @@
   "pages": [
     "upload-lifecycle",
     "manager-state",
+    "react-hooks",
     "batch-uploads",
     "retries",
     "custom-metadata",
