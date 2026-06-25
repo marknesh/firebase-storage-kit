@@ -38,9 +38,17 @@ export class FirebaseStorageProvider implements StorageProvider {
   ): ProviderUploadTask {
     const storageRef = ref(this.storage, options.path);
 
-    const metadata = options.customMetadata
-      ? { customMetadata: options.customMetadata }
-      : undefined;
+    const metadata =
+      options.contentType !== undefined || options.customMetadata !== undefined
+        ? {
+            ...(options.contentType !== undefined && {
+              contentType: options.contentType,
+            }),
+            ...(options.customMetadata !== undefined && {
+              customMetadata: options.customMetadata,
+            }),
+          }
+        : undefined;
 
     const task = uploadBytesResumable(storageRef, file, metadata);
 

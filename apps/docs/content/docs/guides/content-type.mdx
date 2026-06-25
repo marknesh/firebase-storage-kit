@@ -1,0 +1,57 @@
+---
+title: Content type
+description: Set the MIME type on uploaded files for previews and downloads.
+---
+
+**Content type** (MIME type) tells browsers and clients how to handle a file — display an image inline, play audio, or download as a document. Without it, Firebase often stores files as `application/octet-stream`, which breaks previews and can force downloads instead of rendering.
+
+Set `contentType` in `UploadOptions` at upload time. Read it back later with `getMetadata`.
+
+## Set content type on upload
+
+```ts
+const handle = manager.uploadFile(file, {
+  path: `uploads/${file.name}`,
+  contentType: file.type || "application/octet-stream",
+});
+```
+
+The browser `File` object usually provides a MIME type via `file.type`. Some files (especially on certain platforms) may have an empty `file.type` — use a fallback when needed.
+
+## Read content type later
+
+```ts
+const meta = await manager.getMetadata(`uploads/${file.name}`);
+console.log(meta.contentType); // e.g. "image/jpeg"
+```
+
+## Batch uploads
+
+Pass `contentType` in the per-file options:
+
+```ts
+manager.uploadFiles(files, (file) => ({
+  path: `uploads/${file.name}`,
+  contentType: file.type || "application/octet-stream",
+}));
+```
+
+## Content type vs custom metadata
+
+<Callout>
+  **`contentType`** is the object's MIME type (e.g. `image/png`,
+  `application/pdf`). **`customMetadata`** is for app-specific string tags
+  (owner ID, source app, etc.). They are separate fields — use both when you
+  need correct file handling and custom tags.
+</Callout>
+
+## Related
+
+<Cards>
+  <Card title="Custom metadata" href="/docs/guides/custom-metadata">
+    Attach string key-value tags to uploaded files.
+  </Card>
+  <Card title="Querying files" href="/docs/guides/querying-files">
+    exists, getMetadata, getDownloadURL, and delete.
+  </Card>
+</Cards>
