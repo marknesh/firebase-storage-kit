@@ -21,6 +21,7 @@ Options for a single upload (`uploadFile` or per-file in `uploadFiles`):
 interface UploadOptions {
   path: string;
   retry?: RetryOptions | false;
+  contentType?: string;
   customMetadata?: Record<string, string>;
 }
 ```

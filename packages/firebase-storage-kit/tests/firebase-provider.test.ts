@@ -245,6 +245,62 @@ describe("FirebaseStorageProvider", () => {
       );
     });
 
+    it("passes contentType to uploadBytesResumable", async () => {
+      const file = new File(["hello"], "hello.txt");
+
+      provider.upload(
+        file,
+        {
+          contentType: "image/jpeg",
+          path: "uploads/hello.txt",
+        },
+        {
+          onError: mock(() => {}),
+          onProgress: mock(() => {}),
+          onSuccess: mock(() => {}),
+        }
+      );
+
+      await Promise.resolve();
+
+      expect(firebaseMocks.uploadBytesResumable).toHaveBeenCalledWith(
+        { path: "uploads/hello.txt" },
+        file,
+        {
+          contentType: "image/jpeg",
+        }
+      );
+    });
+
+    it("passes contentType and customMetadata together", async () => {
+      const file = new File(["hello"], "hello.txt");
+
+      provider.upload(
+        file,
+        {
+          contentType: "image/jpeg",
+          customMetadata: { owner: "user-123", source: "web" },
+          path: "uploads/hello.txt",
+        },
+        {
+          onError: mock(() => {}),
+          onProgress: mock(() => {}),
+          onSuccess: mock(() => {}),
+        }
+      );
+
+      await Promise.resolve();
+
+      expect(firebaseMocks.uploadBytesResumable).toHaveBeenCalledWith(
+        { path: "uploads/hello.txt" },
+        file,
+        {
+          contentType: "image/jpeg",
+          customMetadata: { owner: "user-123", source: "web" },
+        }
+      );
+    });
+
     it("omits metadata when customMetadata is not provided", async () => {
       const file = new File(["hello"], "hello.txt");
 
