@@ -32,7 +32,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 24
+          # Pin to >=24.18.0: 24.17.x exposes a node-fetch@2 keep-alive bug
+          # (CVE-2026-48931 fix) that makes `changeset version` fail with
+          # "Premature close" when calling the GitHub GraphQL API.
+          # See https://github.com/changesets/changesets/issues/2115
+          node-version: 24.18.0
           registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
@@ -45,8 +49,8 @@ jobs:
         id: changesets
         uses: changesets/action@v1
         with:
-          version: bun run version
-          publish: bun run release
+          version: npx changeset version
+          publish: npx changeset publish
           title: "chore: release packages"
           commit: "chore: release packages"
           createGithubReleases: true
