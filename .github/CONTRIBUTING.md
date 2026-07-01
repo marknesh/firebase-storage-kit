@@ -32,11 +32,15 @@ The docs site lives in `apps/docs/`. Content is MDX under `apps/docs/content/doc
 From the repo root:
 
 ```bash
-bun run test       # run tests across packages
-bun run build      # build all packages
-bun run typecheck  # type-check all packages
-bun run dev        # watch mode (via Turbo)
-bun run dev:docs   # docs site only (http://localhost:3000/docs)
+bun run check        # lint and format (runs prepare:docs first — see below)
+bun run fix          # auto-fix lint and format issues
+bun run prepare:docs # generate docs MDX and Next.js route types
+bun run test         # run tests across packages
+bun run build        # build all packages
+bun run typecheck    # type-check all packages
+bun run dev          # watch mode (via Turbo)
+bun run dev:docs     # docs site only (http://localhost:3000/docs)
+bun run changeset    # create a changeset for versioning
 ```
 
 To run tests for the library only:
@@ -54,6 +58,7 @@ bun test
 4. Ensure CI passes locally:
 
    ```bash
+   bun run check
    bun run test
    bun run typecheck
    ```
@@ -80,6 +85,21 @@ Docs-only or internal refactors that don't affect the published package do not n
 
 The docs app uses [Fumadocs](https://www.fumadocs.dev/docs/) and deploys to Vercel.
 
+### Why `prepare:docs` runs before `check`
+
+`bun run check` runs `prepare:docs` before linting. The docs app depends on generated files that are not committed to git:
+
+- `fumadocs-mdx` — compiles MDX content into the `.source` directory
+- `next typegen` — generates Next.js route types (e.g. `PageProps`) in `apps/docs/.next/types`
+
+Type-aware linting in `check` needs those files to resolve types in `apps/docs/`. Without running `prepare:docs` first, lint fails on a fresh clone even when the source code is correct.
+
+To generate docs files without linting:
+
+```bash
+bun run prepare:docs
+```
+
 **Local development:**
 
 ```bash
@@ -100,6 +120,7 @@ Edit pages in `apps/docs/content/docs/`. Navigation is controlled by `meta.json`
 
 - [ ] I have linked the related issue (if applicable)
 - [ ] I have written tests
+- [ ] I have verified lint passes (`bun run check`)
 - [ ] I have verified typecheck passes (`bun run typecheck`)
 - [ ] I have added a changeset if this PR affects the published version
 

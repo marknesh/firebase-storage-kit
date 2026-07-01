@@ -45,6 +45,8 @@ interface StorageState {
 
 ## Example: active upload count
 
+With React, prefer `useStorageState` from `firebase-storage-kit/react` — see [React hooks](/docs/guides/react-hooks).
+
 ```tsx
 function UploadBadge({ manager }: { manager: StorageManager }) {
   const [count, setCount] = useState(0);

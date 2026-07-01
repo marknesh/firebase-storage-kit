@@ -1,0 +1,163 @@
+---
+title: React hooks
+description: Subscribe to upload state with hooks instead of manual manager.subscribe wiring.
+---
+
+Import hooks from the React entry point (React 18+):
+
+```tsx
+import {
+  StorageManagerProvider,
+  useBatch,
+  useStorageManager,
+  useStorageState,
+  useUpload,
+} from "firebase-storage-kit/react";
+```
+
+Install `react` alongside `firebase` and `firebase-storage-kit`.
+
+## Create a manager
+
+```tsx
+import { getStorage } from "firebase/storage";
+import { useStorageManager } from "firebase-storage-kit/react";
+
+function App() {
+  const storage = getStorage(app);
+  const manager = useStorageManager(storage);
+
+  // ...
+}
+```
+
+`useStorageManager` memoizes one [StorageManager](/docs/api/storage-manager) per `storage` instance.
+
+## Global upload list
+
+Pass the manager explicitly, or wrap the tree with `StorageManagerProvider`:
+
+```tsx
+<StorageManagerProvider manager={manager}>
+  <UploadDashboard />
+</StorageManagerProvider>
+```
+
+```tsx
+function UploadDashboard() {
+  const state = useStorageState();
+  return (
+    <ul>
+      {state.uploads.map((upload) => (
+        <li key={upload.id}>
+          {upload.file.name} — {upload.progress.toFixed(0)}%
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+With an explicit manager: `useStorageState(manager)`.
+
+## Single file progress
+
+A `handle` is what `manager.uploadFile(...)` returns. Store it in state, then pass
+it to `useUpload` to re-render as that one upload progresses:
+
+```tsx
+function SingleUpload({ manager }: { manager: StorageManager }) {
+  const [handle, setHandle] = useState<UploadHandle | null>(null);
+  const upload = useUpload(handle);
+
+  function onPick(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (file) {
+      setHandle(manager.uploadFile(file, { path: `uploads/${file.name}` }));
+    }
+  }
+
+  return (
+    <div>
+      <input type="file" onChange={onPick} />
+      {upload && (
+        <p>
+          {upload.file.name}: {upload.status} ({upload.progress.toFixed(0)}%)
+        </p>
+      )}
+    </div>
+  );
+}
+```
+
+`useUpload(null)` returns `null`, so it is safe to render before a file is picked.
+
+## Batch totals
+
+A **`batch`** is what `manager.uploadFiles(...)` returns — a [`BatchHandle`](/docs/api/batch-handle) for the whole group. Store it in state (same idea as a single `UploadHandle`), then pass it to `useBatch` for combined progress:
+
+```tsx
+import type { BatchHandle } from "firebase-storage-kit";
+import { useBatch } from "firebase-storage-kit/react";
+
+function MultiFileUpload({ manager }: { manager: StorageManager }) {
+  const [batch, setBatch] = useState<BatchHandle | null>(null);
+
+  function onPick(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files;
+    if (!files?.length) return;
+
+    setBatch(
+      manager.uploadFiles(
+        [...files],
+        (file) => ({ path: `uploads/${file.name}` }),
+        { concurrency: 3 }
+      )
+    );
+  }
+
+  return (
+    <div>
+      <input type="file" multiple onChange={onPick} />
+      <BatchProgress batch={batch} />
+    </div>
+  );
+}
+
+function BatchProgress({ batch }: { batch: BatchHandle | null }) {
+  const snapshot = useBatch(batch);
+  if (snapshot === null) return null;
+
+  return (
+    <p>
+      {snapshot.completedCount}/{snapshot.uploads.length} done —{" "}
+      {snapshot.totalProgress.toFixed(0)}%
+    </p>
+  );
+}
+```
+
+`useBatch` reads the same snapshot you would get from `batch.snapshot()` or `batch.on("progress", ...)`, but triggers re-renders in React.
+
+## When to use hooks vs `.on(...)`
+
+| Hooks                                 | `handle.on(...)`                  |
+| ------------------------------------- | --------------------------------- |
+| React components that need re-renders | Non-React code, one-off callbacks |
+| `useStorageState` for app-wide lists  | Imperative logging or analytics   |
+
+You can mix both; they observe the same underlying state.
+
+## Related
+
+<Cards>
+  <Card title="Track all uploads" href="/docs/guides/manager-state">
+    Manual `subscribe` and `getState` without React.
+  </Card>
+  <Card title="Single upload" href="/docs/getting-started/single-upload">
+    Per-handle events in detail.
+  </Card>
+  <Card title="Batch uploads" href="/docs/guides/batch-uploads">
+    `uploadFiles`, concurrency, and batch events.
+  </Card>
+</Cards>

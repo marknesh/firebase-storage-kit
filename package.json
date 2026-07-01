@@ -18,6 +18,7 @@
     "release": "turbo run build && changeset publish",
     "check": "bun run prepare:docs && ultracite check --type-aware",
     "prepare:docs": "bun --cwd apps/docs fumadocs-mdx && bun run --cwd apps/docs typegen",
+    "check:type-aware": "ultracite check --type-aware",
     "fix": "ultracite fix --type-aware",
     "prepare": "husky"
   },

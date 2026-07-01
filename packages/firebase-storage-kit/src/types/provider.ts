@@ -32,6 +32,8 @@ export interface UploadOptions {
   path: string;
   /** Retries are enabled by default. Pass `false` to disable, or an object to customize. */
   retry?: RetryOptions | false;
+  /** MIME type stored on the object (e.g. `image/jpeg`). */
+  contentType?: string;
   /** App-specific string key/value pairs stored on the object.*/
   customMetadata?: Record<string, string>;
 }
