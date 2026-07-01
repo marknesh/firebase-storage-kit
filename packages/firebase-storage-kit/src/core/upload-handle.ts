@@ -94,10 +94,12 @@ export class UploadHandle extends Emitter<UploadHandleEvents> {
   }
 
   /** @internal */
-  _prepareRetryAttempt(attempt: number): void {
+  _prepareAttempt(attempt: number): void {
     if (this.terminated) {
       return;
     }
+    this.upload.attempt = attempt;
+    // oxlint-disable-next-line typescript/no-deprecated -- intentionally mirroring the deprecated alias
     this.upload.retryAttempt = attempt;
     this.upload.bytesTransferred = 0;
     this.upload.progress = 0;
@@ -112,6 +114,8 @@ export class UploadHandle extends Emitter<UploadHandleEvents> {
     if (this.terminated) {
       return;
     }
+    this.upload.attempt = details.attempt;
+    // oxlint-disable-next-line typescript/no-deprecated -- intentionally mirroring the deprecated alias
     this.upload.retryAttempt = details.attempt;
     this.upload.error = details.error;
     this.task = null;
