@@ -6,6 +6,15 @@ export {
   isRetryableStorageError,
   resolveRetryOptions,
 } from "./core/retry";
+export {
+  getFileExtension,
+  readImageDimensions,
+  validateImageDimensionLimits,
+  validateImageDimensions,
+  validateUpload,
+  validateUploadSync,
+  ValidationError,
+} from "./core/validation";
 export * from "./core/upload-handle";
 export { StorageManager } from "./firebase-storage-manager";
 
