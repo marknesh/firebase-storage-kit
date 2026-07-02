@@ -180,7 +180,7 @@ export class StorageManager {
         }
 
         attempt += 1;
-        handle._prepareRetryAttempt(attempt);
+        handle._prepareAttempt(attempt);
 
         currentTask = this.provider.upload(handle.upload.file, options, {
           onError: (error) => {

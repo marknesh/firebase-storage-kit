@@ -95,7 +95,7 @@ describe("upload retries", () => {
 
     expect(spies.upload).toHaveBeenCalledTimes(3);
     expect(handle.upload.status).toBe("success");
-    expect(handle.upload.retryAttempt).toBe(3);
+    expect(handle.upload.attempt).toBe(3);
   });
 
   it("fails immediately on non-retryable errors", async () => {

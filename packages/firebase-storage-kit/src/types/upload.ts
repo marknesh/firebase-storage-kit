@@ -23,6 +23,11 @@ export interface UploadItem {
   status: UploadStatus;
   downloadURL?: string;
   error?: Error;
+  /** The current attempt number (1-based). The initial upload is attempt `1`; each retry increments it. */
+  attempt?: number;
+  /**
+   * @deprecated Use {@link UploadItem.attempt} instead. Kept as an alias for backward compatibility and always mirrors `attempt`.
+   */
   retryAttempt?: number;
   batchId?: string;
 }
