@@ -3,6 +3,7 @@ import { mock } from "bun:test";
 import type { FirebaseStorage } from "firebase/storage";
 
 import type { StorageProvider } from "../../src/providers/provider";
+import type { ListOptions, StorageListResult } from "../../src/types/list";
 import type { FileMetadata } from "../../src/types/metadata";
 import type {
   ProviderUploadCallbacks,
@@ -40,6 +41,8 @@ export interface MockProviderOptions {
   getMetadata?: (path: string) => Promise<FileMetadata>;
   getDownloadURL?: (path: string) => Promise<string>;
   delete?: (path: string) => Promise<void>;
+  list?: (prefix: string, options?: ListOptions) => Promise<StorageListResult>;
+  listAll?: (prefix: string) => Promise<StorageListResult>;
 }
 
 export interface MockProviderSpies {
@@ -47,6 +50,14 @@ export interface MockProviderSpies {
   getMetadata: ReturnType<typeof mock<(path: string) => Promise<FileMetadata>>>;
   getDownloadURL: ReturnType<typeof mock<(path: string) => Promise<string>>>;
   delete: ReturnType<typeof mock<(path: string) => Promise<void>>>;
+  list: ReturnType<
+    typeof mock<
+      (prefix: string, options?: ListOptions) => Promise<StorageListResult>
+    >
+  >;
+  listAll: ReturnType<
+    typeof mock<(prefix: string) => Promise<StorageListResult>>
+  >;
   upload: ReturnType<
     typeof mock<
       (
@@ -133,6 +144,11 @@ const runUploadBehavior = (
   }
 };
 
+const defaultListResult = (): StorageListResult => ({
+  items: [],
+  prefixes: [],
+});
+
 /** Default async stub when a test does not override provider behavior. */
 const doNothingAsync = async (): Promise<void> => {
   await Promise.resolve();
@@ -185,6 +201,20 @@ export const createMockProvider = (
           return defaultMetadata(path);
         })
     ),
+    list: mock(
+      options.list ??
+        (async () => {
+          await Promise.resolve();
+          return defaultListResult();
+        })
+    ),
+    listAll: mock(
+      options.listAll ??
+        (async () => {
+          await Promise.resolve();
+          return defaultListResult();
+        })
+    ),
     upload: mock((file, uploadOptions, callbacks) => {
       const task: ProviderUploadTask = {
         cancel: mock(doNothing),
@@ -209,6 +239,8 @@ export const createMockProvider = (
     exists: spies.exists,
     getDownloadURL: spies.getDownloadURL,
     getMetadata: spies.getMetadata,
+    list: spies.list,
+    listAll: spies.listAll,
     upload: spies.upload,
   };
 

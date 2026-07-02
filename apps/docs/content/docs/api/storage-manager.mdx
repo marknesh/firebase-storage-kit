@@ -84,6 +84,22 @@ delete(path: string): Promise<void>
 
 Deletes the object at `path`.
 
+### list
+
+```ts
+list(prefix: string, options?: ListOptions): Promise<StorageListResult>
+```
+
+Lists folders and files at `prefix` with optional pagination (`maxResults`, `pageToken`).
+
+### listAll
+
+```ts
+listAll(prefix: string): Promise<StorageListResult>
+```
+
+Lists all folders and files at `prefix` (auto-paginates internally).
+
 ## Related
 
 <Cards>

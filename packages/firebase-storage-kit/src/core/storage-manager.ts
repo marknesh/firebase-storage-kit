@@ -1,4 +1,5 @@
 import type { StorageProvider } from "../providers/provider";
+import type { ListOptions, StorageListResult } from "../types/list";
 import type { FileMetadata } from "../types/metadata";
 import type { ProviderUploadTask, UploadOptions } from "../types/provider";
 import type { StorageState, UploadItem } from "../types/upload";
@@ -65,6 +66,19 @@ export class StorageManager {
   /** Deletes the object at `path`. */
   async delete(path: string): Promise<void> {
     await this.provider.delete(path);
+  }
+
+  /** Lists folders and files at `prefix` with optional pagination. */
+  async list(
+    prefix: string,
+    options?: ListOptions
+  ): Promise<StorageListResult> {
+    return await this.provider.list(prefix, options);
+  }
+
+  /** Lists all folders and files at `prefix` (auto-paginates internally). */
+  async listAll(prefix: string): Promise<StorageListResult> {
+    return await this.provider.listAll(prefix);
   }
 
   /** Starts the file upload.`options.path` is the object path in storage (see {@link UploadOptions}).

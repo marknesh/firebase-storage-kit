@@ -38,6 +38,27 @@ const firebaseMocks = {
       updated: "2024-01-02T00:00:00.000Z",
     };
   }),
+  list: mock(
+    async (): Promise<{
+      items: { fullPath: string; name: string }[];
+      nextPageToken?: string;
+      prefixes: { fullPath: string }[];
+    }> => {
+      await Promise.resolve();
+      return {
+        items: [{ fullPath: "images/photo.jpg", name: "photo.jpg" }],
+        nextPageToken: "token-2",
+        prefixes: [{ fullPath: "images/thumbnails/" }],
+      };
+    }
+  ),
+  listAll: mock(async () => {
+    await Promise.resolve();
+    return {
+      items: [{ fullPath: "images/photo.jpg", name: "photo.jpg" }],
+      prefixes: [{ fullPath: "images/thumbnails/" }],
+    };
+  }),
   ref: mock((_storage: unknown, path: string) => ({ path })),
   uploadBytesResumable: mock(() => ({
     cancel: mock(() => {}),
@@ -56,6 +77,8 @@ void mock.module("firebase/storage", () => ({
   deleteObject: firebaseMocks.deleteObject,
   getDownloadURL: firebaseMocks.getDownloadURL,
   getMetadata: firebaseMocks.getMetadata,
+  list: firebaseMocks.list,
+  listAll: firebaseMocks.listAll,
   ref: firebaseMocks.ref,
   uploadBytesResumable: firebaseMocks.uploadBytesResumable,
 }));
@@ -65,6 +88,8 @@ describe("FirebaseStorageProvider", () => {
     firebaseMocks.deleteObject.mockClear();
     firebaseMocks.getDownloadURL.mockClear();
     firebaseMocks.getMetadata.mockClear();
+    firebaseMocks.list.mockClear();
+    firebaseMocks.listAll.mockClear();
     firebaseMocks.ref.mockClear();
     firebaseMocks.uploadBytesResumable.mockClear();
   });
@@ -132,6 +157,54 @@ describe("FirebaseStorageProvider", () => {
         size: 2048,
         updatedAt: new Date("2024-01-02T00:00:00.000Z"),
       });
+    });
+  });
+
+  describe("list", () => {
+    it("maps firebase list result and forwards options", async () => {
+      const result = await provider.list("images/", {
+        maxResults: 100,
+        pageToken: "token-1",
+      });
+
+      expect(firebaseMocks.ref).toHaveBeenCalledWith(storage, "images/");
+      expect(firebaseMocks.list).toHaveBeenCalledWith(
+        { path: "images/" },
+        { maxResults: 100, pageToken: "token-1" }
+      );
+      expect(result).toEqual({
+        items: [{ name: "photo.jpg", path: "images/photo.jpg" }],
+        nextPageToken: "token-2",
+        prefixes: ["images/thumbnails/"],
+      });
+    });
+
+    it("omits nextPageToken when firebase does not return one", async () => {
+      firebaseMocks.list.mockImplementationOnce(async () => {
+        await Promise.resolve();
+        return {
+          items: [],
+          prefixes: [],
+        };
+      });
+
+      const result = await provider.list("images/");
+
+      expect(result.nextPageToken).toBeUndefined();
+    });
+  });
+
+  describe("listAll", () => {
+    it("maps firebase listAll result", async () => {
+      const result = await provider.listAll("images/");
+
+      expect(firebaseMocks.ref).toHaveBeenCalledWith(storage, "images/");
+      expect(firebaseMocks.listAll).toHaveBeenCalledWith({ path: "images/" });
+      expect(result).toEqual({
+        items: [{ name: "photo.jpg", path: "images/photo.jpg" }],
+        prefixes: ["images/thumbnails/"],
+      });
+      expect(result.nextPageToken).toBeUndefined();
     });
   });
 
