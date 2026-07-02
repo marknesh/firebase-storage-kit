@@ -108,6 +108,34 @@ interface FileMetadata {
 }
 ```
 
+## StorageListItem
+
+```ts
+interface StorageListItem {
+  path: string;
+  name: string;
+}
+```
+
+## StorageListResult
+
+```ts
+interface StorageListResult {
+  prefixes: string[];
+  items: StorageListItem[];
+  nextPageToken?: string;
+}
+```
+
+## ListOptions
+
+```ts
+interface ListOptions {
+  maxResults?: number;
+  pageToken?: string;
+}
+```
+
 ## Advanced exports
 
 These are exported for testing and advanced use:

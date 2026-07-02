@@ -194,6 +194,46 @@ describe("StorageManager", () => {
       expect(spies.getDownloadURL).toHaveBeenCalledWith("uploads/photo.jpg");
     });
 
+    it("delegates list to the provider with options", async () => {
+      const listResult = {
+        items: [{ name: "photo.jpg", path: "images/photo.jpg" }],
+        nextPageToken: "token-2",
+        prefixes: ["images/thumbnails/"],
+      };
+      const { provider, spies } = createMockProvider({
+        list: async () => {
+          await Promise.resolve();
+          return listResult;
+        },
+      });
+      const manager = new StorageManager(provider);
+
+      expect(
+        await manager.list("images/", { maxResults: 100, pageToken: "token-1" })
+      ).toEqual(listResult);
+      expect(spies.list).toHaveBeenCalledWith("images/", {
+        maxResults: 100,
+        pageToken: "token-1",
+      });
+    });
+
+    it("delegates listAll to the provider", async () => {
+      const listResult = {
+        items: [{ name: "photo.jpg", path: "images/photo.jpg" }],
+        prefixes: ["images/thumbnails/"],
+      };
+      const { provider, spies } = createMockProvider({
+        listAll: async () => {
+          await Promise.resolve();
+          return listResult;
+        },
+      });
+      const manager = new StorageManager(provider);
+
+      expect(await manager.listAll("images/")).toEqual(listResult);
+      expect(spies.listAll).toHaveBeenCalledWith("images/");
+    });
+
     it("propagates provider errors", async () => {
       const { provider } = createMockProvider({
         exists: async () => {

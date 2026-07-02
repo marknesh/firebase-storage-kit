@@ -2,11 +2,14 @@ import {
   deleteObject,
   getDownloadURL,
   getMetadata,
+  list,
+  listAll,
   ref,
   uploadBytesResumable,
 } from "firebase/storage";
 import type { FirebaseStorage, StorageError } from "firebase/storage";
 
+import type { ListOptions, StorageListResult } from "../types/list";
 import type { FileMetadata } from "../types/metadata";
 import type {
   ProviderUploadCallbacks,
@@ -115,5 +118,40 @@ export class FirebaseStorageProvider implements StorageProvider {
 
   async delete(path: string): Promise<void> {
     await deleteObject(ref(this.storage, path));
+  }
+
+  async list(
+    prefix: string,
+    options?: ListOptions
+  ): Promise<StorageListResult> {
+    const result = await list(ref(this.storage, prefix), {
+      ...(options?.maxResults !== undefined && {
+        maxResults: options.maxResults,
+      }),
+      ...(options?.pageToken !== undefined && { pageToken: options.pageToken }),
+    });
+
+    return {
+      items: result.items.map((item) => ({
+        name: item.name,
+        path: item.fullPath,
+      })),
+      ...(result.nextPageToken !== undefined && {
+        nextPageToken: result.nextPageToken,
+      }),
+      prefixes: result.prefixes.map((folderRef) => folderRef.fullPath),
+    };
+  }
+
+  async listAll(prefix: string): Promise<StorageListResult> {
+    const result = await listAll(ref(this.storage, prefix));
+
+    return {
+      items: result.items.map((item) => ({
+        name: item.name,
+        path: item.fullPath,
+      })),
+      prefixes: result.prefixes.map((folderRef) => folderRef.fullPath),
+    };
   }
 }

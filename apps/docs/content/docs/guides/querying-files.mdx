@@ -44,6 +44,36 @@ Returns a public or tokenized URL depending on your bucket rules and object ACLs
 await manager.delete("uploads/old.jpg");
 ```
 
+## List files and folders
+
+List everything at one level with `listAll`:
+
+```ts
+const result = await manager.listAll("images/");
+
+result.prefixes.forEach((folderPath) => {
+  console.log("Folder:", folderPath);
+});
+
+result.items.forEach((item) => {
+  console.log("File:", item.name);
+});
+```
+
+For large directories, use paginated `list`:
+
+```ts
+let pageToken: string | undefined;
+
+do {
+  const page = await manager.list("images/", { maxResults: 100, pageToken });
+  // ... use page.prefixes and page.items
+  pageToken = page.nextPageToken;
+} while (pageToken);
+```
+
+`prefixes` are folder paths at that level. Each item in `items` has `name` (file name) and `path` (full object path).
+
 ## Full example
 
 ```ts
