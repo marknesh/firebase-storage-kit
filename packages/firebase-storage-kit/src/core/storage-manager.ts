@@ -11,6 +11,11 @@ import {
   resolveRetryOptions,
 } from "./retry";
 import { UploadHandle } from "./upload-handle";
+import {
+  needsImageDimensionValidation,
+  validateImageDimensions,
+  validateUploadSync,
+} from "./validation";
 
 /**
  * Manages file uploads and storage queries.
@@ -90,7 +95,7 @@ export class StorageManager {
     this.uploadOptionsByHandleId.set(handle.upload.id, options);
     this.uploadHandles.push(handle);
     this.notifyChange();
-    this.startUpload(handle, options);
+    this.validateAndStartUpload(handle, options);
     return handle;
   }
 
@@ -131,7 +136,7 @@ export class StorageManager {
         const options = this.uploadOptionsByHandleId.get(handle.upload.id) ?? {
           path: handle.upload.path,
         };
-        this.startUpload(handle, options);
+        this.validateAndStartUpload(handle, options);
       },
       uploads: handles,
     });
@@ -159,6 +164,49 @@ export class StorageManager {
     return new UploadHandle(upload, () => {
       this.notifyChange();
     });
+  }
+
+  private validateAndStartUpload(
+    handle: UploadHandle,
+    options: UploadOptions
+  ): void {
+    if (options.validate) {
+      const syncError = validateUploadSync(
+        handle.upload.file,
+        options.validate
+      );
+      if (syncError) {
+        queueMicrotask(() => {
+          handle._reportError(syncError);
+        });
+        return;
+      }
+
+      if (needsImageDimensionValidation(options.validate)) {
+        void this.runImageValidation(handle, options);
+        return;
+      }
+    }
+
+    this.startUpload(handle, options);
+  }
+
+  private async runImageValidation(
+    handle: UploadHandle,
+    options: UploadOptions
+  ): Promise<void> {
+    const { validate } = options;
+    if (!validate) {
+      this.startUpload(handle, options);
+      return;
+    }
+
+    const error = await validateImageDimensions(handle.upload.file, validate);
+    if (error) {
+      handle._reportError(error);
+      return;
+    }
+    this.startUpload(handle, options);
   }
 
   private startUpload(handle: UploadHandle, options: UploadOptions): void {
