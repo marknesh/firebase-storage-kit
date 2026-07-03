@@ -1,5 +1,15 @@
 # firebase-storage-kit
 
+## 1.6.0
+
+### Minor Changes
+
+- [#46](https://github.com/marknesh/firebase-storage-kit/pull/46) [`424a4f9`](https://github.com/marknesh/firebase-storage-kit/commit/424a4f9618ea7ffdac93dc0c6464efb039290414) Thanks [@marknesh](https://github.com/marknesh)! - Add `StorageManager.list()` and `StorageManager.listAll()` for listing folders and files at a storage prefix.
+
+- [#47](https://github.com/marknesh/firebase-storage-kit/pull/47) [`b7c5855`](https://github.com/marknesh/firebase-storage-kit/commit/b7c5855127c92dc749766337ced52dba359639f0) Thanks [@marknesh](https://github.com/marknesh)! - Add optional pre-upload validation via `UploadOptions.validate`. Reject files before the provider upload starts using `maxSizeBytes`, `allowedMimeTypes`, `allowedExtensions`, and optional image dimension limits (`maxImageWidth`, `maxImageHeight`). Validation failures surface as `ValidationError` with stable `validation/*` codes on `error.code` (for example `validation/file-too-large`). Export `validateUpload`, `validateUploadSync`, `validateImageDimensions`, `validateImageDimensionLimits`, `readImageDimensions`, `getFileExtension`, `VALIDATION_ERROR_CODES`, and the `ValidationErrorCode` type for standalone use.
+
+- [#46](https://github.com/marknesh/firebase-storage-kit/pull/46) [`424a4f9`](https://github.com/marknesh/firebase-storage-kit/commit/424a4f9618ea7ffdac93dc0c6464efb039290414) Thanks [@marknesh](https://github.com/marknesh)! - Add `UploadItem.attempt` as the preferred name for the 1-based attempt counter (the initial upload is attempt `1`, and each retry increments it). `UploadItem.retryAttempt` is now deprecated but continues to work as an alias that always mirrors `attempt`, so this change is non-breaking. Prefer `upload.attempt` going forward.
+
 ## 1.5.0
 
 ### Minor Changes
