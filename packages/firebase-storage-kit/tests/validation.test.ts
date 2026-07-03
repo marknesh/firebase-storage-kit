@@ -4,6 +4,7 @@ import { StorageManager } from "../src/core/storage-manager";
 import * as validation from "../src/core/validation";
 import {
   getFileExtension,
+  VALIDATION_ERROR_CODES,
   validateImageDimensionLimits,
   validateUpload,
   validateUploadSync,
@@ -32,6 +33,7 @@ describe("validation utilities", () => {
     );
     const error = validateUploadSync(file, { maxSizeBytes: 10 });
     expect(error).toBeInstanceOf(ValidationError);
+    expect(error?.code).toBe(VALIDATION_ERROR_CODES.fileTooLarge);
     expect(error?.message).toContain("exceeds maximum");
   });
 
@@ -41,6 +43,7 @@ describe("validation utilities", () => {
       allowedMimeTypes: ["image/jpeg", "image/png"],
     });
     expect(error?.name).toBe("ValidationError");
+    expect(error?.code).toBe(VALIDATION_ERROR_CODES.mimeTypeNotAllowed);
     expect(error?.message).toContain("application/pdf");
   });
 
@@ -49,6 +52,7 @@ describe("validation utilities", () => {
     const error = validateUploadSync(file, {
       allowedExtensions: [".jpg", ".jpeg", ".png", ".webp"],
     });
+    expect(error?.code).toBe(VALIDATION_ERROR_CODES.extensionNotAllowed);
     expect(error?.message).toContain(".gif");
   });
 
@@ -68,6 +72,7 @@ describe("validation utilities", () => {
       { height: 5000, width: 3000 },
       { maxImageHeight: 4096, maxImageWidth: 4096 }
     );
+    expect(error?.code).toBe(VALIDATION_ERROR_CODES.imageHeightTooLarge);
     expect(error?.message).toContain("height");
   });
 });

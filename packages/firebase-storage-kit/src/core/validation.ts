@@ -1,7 +1,26 @@
 import type { UploadValidationOptions } from "../types/provider";
 
+export const VALIDATION_ERROR_CODES = {
+  extensionNotAllowed: "validation/extension-not-allowed",
+  fileTooLarge: "validation/file-too-large",
+  imageDimensionUnavailable: "validation/image-dimension-unavailable",
+  imageDimensionsUnreadable: "validation/image-dimensions-unreadable",
+  imageHeightTooLarge: "validation/image-height-too-large",
+  imageWidthTooLarge: "validation/image-width-too-large",
+  mimeTypeNotAllowed: "validation/mime-type-not-allowed",
+} as const;
+
+export type ValidationErrorCode =
+  (typeof VALIDATION_ERROR_CODES)[keyof typeof VALIDATION_ERROR_CODES];
+
 export class ValidationError extends Error {
   override readonly name = "ValidationError";
+  readonly code: ValidationErrorCode;
+
+  constructor(message: string, code: ValidationErrorCode) {
+    super(message);
+    this.code = code;
+  }
 }
 
 export interface ImageDimensions {
@@ -46,7 +65,8 @@ export const validateUploadSync = (
 ): ValidationError | null => {
   if (options.maxSizeBytes !== undefined && file.size > options.maxSizeBytes) {
     return new ValidationError(
-      `File size ${formatBytes(file.size)} exceeds maximum of ${formatBytes(options.maxSizeBytes)}`
+      `File size ${formatBytes(file.size)} exceeds maximum of ${formatBytes(options.maxSizeBytes)}`,
+      VALIDATION_ERROR_CODES.fileTooLarge
     );
   }
 
@@ -55,7 +75,8 @@ export const validateUploadSync = (
     const mime = file.type.toLowerCase();
     if (!allowed.includes(mime)) {
       return new ValidationError(
-        `File type ${file.type || "(unknown)"} is not allowed`
+        `File type ${file.type || "(unknown)"} is not allowed`,
+        VALIDATION_ERROR_CODES.mimeTypeNotAllowed
       );
     }
   }
@@ -65,7 +86,8 @@ export const validateUploadSync = (
     const allowed = options.allowedExtensions.map(normalizeExtension);
     if (!allowed.includes(extension)) {
       return new ValidationError(
-        `File extension ${extension || "(none)"} is not allowed`
+        `File extension ${extension || "(none)"} is not allowed`,
+        VALIDATION_ERROR_CODES.extensionNotAllowed
       );
     }
   }
@@ -77,7 +99,10 @@ export const readImageDimensions = async (
   file: File
 ): Promise<ImageDimensions> => {
   if (typeof createImageBitmap === "undefined") {
-    throw new ValidationError("Image dimension validation is not available");
+    throw new ValidationError(
+      "Image dimension validation is not available",
+      VALIDATION_ERROR_CODES.imageDimensionUnavailable
+    );
   }
 
   const bitmap = await createImageBitmap(file);
@@ -99,7 +124,8 @@ export const validateImageDimensionLimits = (
     dimensions.width > options.maxImageWidth
   ) {
     return new ValidationError(
-      `Image width ${dimensions.width}px exceeds maximum of ${options.maxImageWidth}px`
+      `Image width ${dimensions.width}px exceeds maximum of ${options.maxImageWidth}px`,
+      VALIDATION_ERROR_CODES.imageWidthTooLarge
     );
   }
 
@@ -108,7 +134,8 @@ export const validateImageDimensionLimits = (
     dimensions.height > options.maxImageHeight
   ) {
     return new ValidationError(
-      `Image height ${dimensions.height}px exceeds maximum of ${options.maxImageHeight}px`
+      `Image height ${dimensions.height}px exceeds maximum of ${options.maxImageHeight}px`,
+      VALIDATION_ERROR_CODES.imageHeightTooLarge
     );
   }
 
@@ -135,7 +162,10 @@ export const validateImageDimensions = async (
     if (error instanceof ValidationError) {
       return error;
     }
-    return new ValidationError("Unable to read image dimensions");
+    return new ValidationError(
+      "Unable to read image dimensions",
+      VALIDATION_ERROR_CODES.imageDimensionsUnreadable
+    );
   }
 
   return validateImageDimensionLimits(dimensions, options);
