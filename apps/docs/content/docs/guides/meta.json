@@ -5,6 +5,7 @@
     "manager-state",
     "react-hooks",
     "batch-uploads",
+    "validation",
     "retries",
     "custom-metadata",
     "content-type",

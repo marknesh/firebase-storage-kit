@@ -1,0 +1,177 @@
+---
+title: Validation
+description: Reject files before upload starts — size, type, extension, and image dimensions.
+---
+
+**Pre-upload validation** checks a file locally before Firebase Storage receives any bytes. If a rule fails, the upload never starts and the handle fires `error` with a `ValidationError`.
+
+Pass `validate` in `UploadOptions` on `uploadFile` or per file in `uploadFiles`.
+
+## Basic example
+
+```ts
+const handle = manager.uploadFile(file, {
+  path: `uploads/${file.name}`,
+  validate: {
+    maxSizeBytes: 5 * 1024 * 1024, // 5 MB
+    allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
+    allowedExtensions: [".jpg", ".jpeg", ".png", ".webp"],
+  },
+});
+
+handle.on("error", (upload) => {
+  if (upload.error?.name === "ValidationError") {
+    console.error(upload.error.message);
+    console.error(upload.error.code); // e.g. validation/file-too-large
+  }
+});
+```
+
+## Validation options
+
+| Option              | Type       | Description                                   |
+| ------------------- | ---------- | --------------------------------------------- |
+| `maxSizeBytes`      | `number`   | Maximum file size in bytes                    |
+| `allowedMimeTypes`  | `string[]` | Allowed MIME types, e.g. `image/jpeg`         |
+| `allowedExtensions` | `string[]` | Allowed extensions with a dot, e.g. `.jpg`    |
+| `maxImageWidth`     | `number`   | Max image width in pixels (image files only)  |
+| `maxImageHeight`    | `number`   | Max image height in pixels (image files only) |
+
+All fields are optional. When you set multiple rules, the first failure wins.
+
+<Callout>
+  **MIME type vs extension** — checks are independent. A file can pass one and
+  fail the other. For strict control, set both `allowedMimeTypes` and
+  `allowedExtensions`.
+</Callout>
+
+## What happens when validation fails
+
+1. Sync checks (size, MIME type, extension) run immediately.
+2. If image dimension limits are set, async checks run next (see below).
+3. On failure, status becomes `error`, `upload.error` is a `ValidationError`, and the provider upload is **not** started.
+
+Validation errors are **not** retried — fix the file or rules instead of increasing `maxRetries`.
+
+## Image dimension checks
+
+`maxImageWidth` and `maxImageHeight` apply only when the file's MIME type starts with `image/`. Non-image files skip dimension checks even when limits are set.
+
+Dimension checks are **async** — they decode the image in the browser with `createImageBitmap` before the upload starts. While decoding, the handle stays in `queued`.
+
+```ts
+manager.uploadFile(file, {
+  path: `uploads/${file.name}`,
+  validate: {
+    allowedMimeTypes: ["image/jpeg", "image/png"],
+    maxImageWidth: 4096,
+    maxImageHeight: 4096,
+  },
+});
+```
+
+<Callout type="warn">
+  Image dimension validation requires `createImageBitmap` (modern browsers). In
+  environments where it is unavailable, validation fails with
+  `validation/image-dimension-unavailable`.
+</Callout>
+
+## Error codes
+
+`ValidationError` exposes a stable `code` string. Compare against `VALIDATION_ERROR_CODES` or match the string directly:
+
+```ts
+import { VALIDATION_ERROR_CODES } from "firebase-storage-kit";
+
+handle.on("error", (upload) => {
+  const error = upload.error;
+  if (error?.name !== "ValidationError") return;
+
+  switch (error.code) {
+    case VALIDATION_ERROR_CODES.fileTooLarge:
+      // show size limit message
+      break;
+    case VALIDATION_ERROR_CODES.mimeTypeNotAllowed:
+    case VALIDATION_ERROR_CODES.extensionNotAllowed:
+      // show allowed types
+      break;
+    case VALIDATION_ERROR_CODES.imageWidthTooLarge:
+    case VALIDATION_ERROR_CODES.imageHeightTooLarge:
+      // show dimension limit
+      break;
+  }
+});
+```
+
+| Code                                     | When it fires                         |
+| ---------------------------------------- | ------------------------------------- |
+| `validation/file-too-large`              | `file.size` exceeds `maxSizeBytes`    |
+| `validation/mime-type-not-allowed`       | MIME type not in `allowedMimeTypes`   |
+| `validation/extension-not-allowed`       | Extension not in `allowedExtensions`  |
+| `validation/image-width-too-large`       | Image width exceeds `maxImageWidth`   |
+| `validation/image-height-too-large`      | Image height exceeds `maxImageHeight` |
+| `validation/image-dimensions-unreadable` | Image could not be decoded            |
+| `validation/image-dimension-unavailable` | `createImageBitmap` is not available  |
+
+## Batch uploads
+
+Pass `validate` in the per-file options function — each file is validated on its own:
+
+```ts
+manager.uploadFiles(
+  files,
+  (file) => ({
+    path: `uploads/${file.name}`,
+    validate: {
+      maxSizeBytes: 10 * 1024 * 1024,
+      allowedExtensions: [".jpg", ".jpeg", ".png", ".webp"],
+      allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
+    },
+  }),
+  { concurrency: 3, continueOnError: true }
+);
+```
+
+With `continueOnError: true` (default), invalid files fail individually while valid files keep uploading.
+
+## Standalone utilities
+
+Use these outside `uploadFile` — for example, to validate on file pick before calling the manager:
+
+```ts
+import {
+  validateUpload,
+  validateUploadSync,
+  ValidationError,
+} from "firebase-storage-kit";
+
+const options = {
+  maxSizeBytes: 5 * 1024 * 1024,
+  allowedMimeTypes: ["image/png"],
+};
+
+// Sync only — size, MIME type, extension
+const syncError = validateUploadSync(file, options);
+
+// Full check — sync rules plus image dimensions when configured
+const error = await validateUpload(file, options);
+if (error instanceof ValidationError) {
+  console.error(error.code, error.message);
+}
+```
+
+`validateImageDimensions` and `validateImageDimensionLimits` are also exported for custom image pipelines.
+
+## Related
+
+<Cards>
+  <Card title="Batch uploads" href="/docs/guides/batch-uploads">
+    Per-file `validate` in multi-file uploads.
+  </Card>
+  <Card title="Types" href="/docs/api/types">
+    `UploadValidationOptions` and `ValidationErrorCode`.
+  </Card>
+  <Card title="Content type" href="/docs/guides/content-type">
+    Set MIME type on the stored object (separate from validation).
+  </Card>
+</Cards>
