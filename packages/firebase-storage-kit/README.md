@@ -2,7 +2,7 @@
 
 [![Socket Badge](https://socket.dev/api/badge/npm/package/firebase-storage-kit)](https://socket.dev/npm/package/firebase-storage-kit)
 
-Storage manager for Firebase Storage with uploads, progress tracking, batch uploads, and file query helpers.
+Upload files to Firebase Storage with automatic retries, batch uploads, and pre-upload validation.
 
 **Full documentation:** [firebase-storage-kit.vercel.app/docs](https://firebase-storage-kit.vercel.app/docs)
 
