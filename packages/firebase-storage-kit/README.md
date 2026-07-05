@@ -1,6 +1,6 @@
 # firebase-storage-kit
 
-[Socket Badge](https://socket.dev/npm/package/firebase-storage-kit)
+[![Socket Badge](https://socket.dev/api/badge/npm/package/firebase-storage-kit)](https://socket.dev/npm/package/firebase-storage-kit)
 
 Upload files to Firebase Storage with automatic retries, batch uploads, and pre-upload validation.
 
