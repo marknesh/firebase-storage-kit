@@ -23,14 +23,34 @@ import { StorageManager } from "firebase-storage-kit";
 const storage = getStorage(app);
 const manager = new StorageManager(storage);
 
-const handle = manager.uploadFile(file, { path: `uploads/${file.name}` });
+const handle = manager.uploadFile(file, {
+  path: `uploads/${file.name}`,
+  validate: {
+    maxSizeBytes: 10 * 1024 * 1024,
+    allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
+    allowedExtensions: [".jpg", ".jpeg", ".png", ".webp"],
+  },
+  retry: { maxRetries: 3 },
+});
 
 handle.on("progress", (upload) => {
   console.log(upload.progress);
 });
 
+handle.on("retry", ({ attempt, maxAttempts, delayMs }) => {
+  console.log(`Retry ${attempt}/${maxAttempts} in ${delayMs}ms`);
+});
+
 handle.on("success", (upload) => {
   console.log(upload.downloadURL);
+});
+
+handle.on("error", (upload) => {
+  if (upload.error?.name === "ValidationError") {
+    console.error("Invalid file:", upload.error.message);
+    return;
+  }
+  console.error("Upload failed:", upload.error?.message);
 });
 ```
 
@@ -40,7 +60,15 @@ handle.on("success", (upload) => {
 import { useStorageManager, useUpload } from "firebase-storage-kit/react";
 
 const manager = useStorageManager(storage);
-const handle = manager.uploadFile(file, { path: `uploads/${file.name}` });
+const handle = manager.uploadFile(file, {
+  path: `uploads/${file.name}`,
+  validate: {
+    maxSizeBytes: 10 * 1024 * 1024,
+    allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
+    allowedExtensions: [".jpg", ".jpeg", ".png", ".webp"],
+  },
+  retry: { maxRetries: 3 },
+});
 const upload = useUpload(handle);
 ```
 
@@ -49,6 +77,7 @@ See [React hooks](https://firebase-storage-kit.vercel.app/docs/guides/react-hook
 ## Learn more
 
 - [Single upload](https://firebase-storage-kit.vercel.app/docs/getting-started/single-upload)
+- [Retries](https://firebase-storage-kit.vercel.app/docs/guides/retries)
 - [Batch uploads](https://firebase-storage-kit.vercel.app/docs/guides/batch-uploads)
 - [API reference](https://firebase-storage-kit.vercel.app/docs/api/storage-manager)
 - [Troubleshooting](https://firebase-storage-kit.vercel.app/docs/troubleshooting)

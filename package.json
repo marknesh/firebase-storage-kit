@@ -40,7 +40,7 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": "ultracite fix --type-aware",
-    "*.{json,jsonc,css}": "oxfmt"
+    "*.{json,jsonc,css,md,mdx}": "oxfmt"
   },
   "engines": {
     "node": ">=24.16.0"
