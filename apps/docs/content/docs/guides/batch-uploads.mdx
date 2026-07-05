@@ -66,6 +66,7 @@ manager.uploadFiles(
   (file, index) => ({
     path: `users/${userId}/${file.name}`,
     customMetadata: { index: String(index) },
+    validate: { maxSizeBytes: 10 * 1024 * 1024 },
     retry: { maxRetries: 5 },
   }),
   { concurrency: 2 }
@@ -91,6 +92,9 @@ const snapshot = batch.snapshot();
 ## Related
 
 <Cards>
+  <Card title="Validation" href="/docs/guides/validation">
+    Per-file rules for size, type, and image dimensions.
+  </Card>
   <Card title="Custom metadata" href="/docs/guides/custom-metadata">
     Attach metadata per file in a batch.
   </Card>

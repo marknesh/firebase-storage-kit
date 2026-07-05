@@ -20,9 +20,24 @@ Options for a single upload (`uploadFile` or per-file in `uploadFiles`):
 ```ts
 interface UploadOptions {
   path: string;
+  validate?: UploadValidationOptions;
   retry?: RetryOptions | false;
   contentType?: string;
   customMetadata?: Record<string, string>;
+}
+```
+
+## UploadValidationOptions
+
+Pre-upload validation rules. See [Validation](/docs/guides/validation) for usage and error handling.
+
+```ts
+interface UploadValidationOptions {
+  maxSizeBytes?: number;
+  allowedMimeTypes?: string[];
+  allowedExtensions?: string[];
+  maxImageWidth?: number;
+  maxImageHeight?: number;
 }
 ```
 
@@ -145,11 +160,18 @@ These are exported for testing and advanced use:
 - `computeRetryDelay`
 - `getStorageErrorCode`
 - `isRetryableStorageError`
+- `VALIDATION_ERROR_CODES`
+- `ValidationError`
+- `validateUpload`, `validateUploadSync`, `validateImageDimensions`, `validateImageDimensionLimits`
+- `getFileExtension`, `readImageDimensions`
 
 ## Related
 
 <Cards>
   <Card title="StorageManager" href="/docs/api/storage-manager">
     Where these types are used.
+  </Card>
+  <Card title="Validation" href="/docs/guides/validation">
+    Pre-upload validation guide and error codes.
   </Card>
 </Cards>

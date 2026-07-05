@@ -77,8 +77,9 @@ See [React hooks](https://firebase-storage-kit.vercel.app/docs/guides/react-hook
 ## Learn more
 
 - [Single upload](https://firebase-storage-kit.vercel.app/docs/getting-started/single-upload)
-- [Retries](https://firebase-storage-kit.vercel.app/docs/guides/retries)
 - [Batch uploads](https://firebase-storage-kit.vercel.app/docs/guides/batch-uploads)
+- [Validation](https://firebase-storage-kit.vercel.app/docs/guides/validation)
+- [Retries](https://firebase-storage-kit.vercel.app/docs/guides/retries)
 - [API reference](https://firebase-storage-kit.vercel.app/docs/api/storage-manager)
 - [Troubleshooting](https://firebase-storage-kit.vercel.app/docs/troubleshooting)
 

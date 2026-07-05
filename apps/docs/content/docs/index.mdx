@@ -11,6 +11,7 @@ description: Upload files to Firebase Storage with progress, retries, and batch 
 - **Progress events** on each file and on the whole batch
 - **Pause, resume, and cancel** during an upload
 - **Automatic retries** with exponential backoff for transient errors
+- **Pre-upload validation** — size, MIME type, extension, and image dimensions
 - **File helpers** — `exists`, `getMetadata`, `getDownloadURL`, `delete`
 - **Global state** — subscribe once to see every active upload
 
@@ -58,5 +59,8 @@ handle.on("success", (upload) => {
   </Card>
   <Card title="Batch uploads" href="/docs/guides/batch-uploads">
     Upload many files at once with concurrency.
+  </Card>
+  <Card title="Validation" href="/docs/guides/validation">
+    Reject files by size, type, or image dimensions before upload.
   </Card>
 </Cards>
