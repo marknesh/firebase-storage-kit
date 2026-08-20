@@ -1,5 +1,11 @@
 # firebase-storage-kit
 
+## 1.6.1
+
+### Patch Changes
+
+- [#52](https://github.com/marknesh/firebase-storage-kit/pull/52) [`f19b4f3`](https://github.com/marknesh/firebase-storage-kit/commit/f19b4f3b948d33597d31c15ac3d2829ca0fd6a21) Thanks [@marknesh](https://github.com/marknesh)! - Add `onConflict` upload strategies for overwriting or failing when a storage path already exists.
+
 ## 1.6.0
 
 ### Minor Changes
