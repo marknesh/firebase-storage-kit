@@ -40,9 +40,13 @@ export interface RetryOptions {
   isRetryable?: (error: Error) => boolean;
 }
 
+export type UploadConflictStrategy = "overwrite" | "fail";
+
 export interface UploadOptions {
   /** Object path in the bucket (Firebase), e.g. `uploads/photo.jpg`. */
   path: string;
+  /** What to do if an object already exists at `path`. Default: `"overwrite"`. */
+  onConflict?: UploadConflictStrategy;
   /** Optional pre-upload validation. Rejects before the provider upload starts. */
   validate?: UploadValidationOptions;
   /** Retries are enabled by default. Pass `false` to disable, or an object to customize. */

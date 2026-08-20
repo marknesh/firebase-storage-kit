@@ -6,6 +6,8 @@ export {
   isRetryableStorageError,
   resolveRetryOptions,
 } from "./core/retry";
+export { CONFLICT_ERROR_CODES, ConflictError } from "./core/path-conflict";
+export type { ConflictErrorCode } from "./core/path-conflict";
 export {
   getFileExtension,
   readImageDimensions,
