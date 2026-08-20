@@ -5,6 +5,7 @@ import type { ProviderUploadTask, UploadOptions } from "../types/provider";
 import type { StorageState, UploadItem } from "../types/upload";
 import type { BatchOptions } from "./batch-handle";
 import { BatchHandle } from "./batch-handle";
+import { CONFLICT_ERROR_CODES, ConflictError } from "./path-conflict";
 import {
   computeRetryDelay,
   isRetryableStorageError,
@@ -188,7 +189,7 @@ export class StorageManager {
       }
     }
 
-    this.startUpload(handle, options);
+    this.resolveAndStartUpload(handle, options);
   }
 
   private async runImageValidation(
@@ -197,15 +198,64 @@ export class StorageManager {
   ): Promise<void> {
     const { validate } = options;
     if (!validate) {
-      this.startUpload(handle, options);
+      this.resolveAndStartUpload(handle, options);
       return;
     }
 
     const error = await validateImageDimensions(handle.upload.file, validate);
+    if (handle._isTerminated()) {
+      return;
+    }
     if (error) {
       handle._reportError(error);
       return;
     }
+    this.resolveAndStartUpload(handle, options);
+  }
+
+  private resolveAndStartUpload(
+    handle: UploadHandle,
+    options: UploadOptions
+  ): void {
+    if (options.onConflict !== "fail") {
+      this.startUpload(handle, options);
+      return;
+    }
+
+    void this.runConflictCheck(handle, options);
+  }
+
+  private async runConflictCheck(
+    handle: UploadHandle,
+    options: UploadOptions
+  ): Promise<void> {
+    let exists: boolean;
+    try {
+      exists = await this.provider.exists(options.path);
+    } catch (error) {
+      if (!handle._isTerminated()) {
+        handle._reportError(
+          error instanceof Error ? error : new Error(String(error))
+        );
+      }
+      return;
+    }
+
+    if (handle._isTerminated()) {
+      return;
+    }
+
+    if (exists) {
+      handle._reportError(
+        new ConflictError(
+          `Object already exists at path "${options.path}"`,
+          CONFLICT_ERROR_CODES.pathAlreadyExists,
+          options.path
+        )
+      );
+      return;
+    }
+
     this.startUpload(handle, options);
   }
 

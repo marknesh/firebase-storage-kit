@@ -9,6 +9,7 @@
     "retries",
     "custom-metadata",
     "content-type",
+    "conflict-handling",
     "querying-files"
   ]
 }

@@ -54,6 +54,11 @@ export class UploadHandle extends Emitter<UploadHandleEvents> {
   }
 
   /** @internal */
+  _isTerminated(): boolean {
+    return this.terminated;
+  }
+
+  /** @internal */
   _attachTask(task: ProviderUploadTask): void {
     this.task = task;
   }

@@ -1,0 +1,70 @@
+---
+title: Conflict handling
+description: Fail or overwrite when an upload path already exists.
+---
+
+Firebase Storage overwrites an existing object when you upload to the same path. Set `onConflict` in `UploadOptions` to keep that behavior or fail before upload.
+
+```ts
+// Fail if the object already exists
+manager.uploadFile(file, {
+  path: "uploads/photo.jpg",
+  onConflict: "fail",
+});
+
+// Overwrite silently (the default)
+manager.uploadFile(file, {
+  path: "uploads/photo.jpg",
+  onConflict: "overwrite",
+});
+```
+
+## Strategies
+
+| Strategy      | Behavior                                                                             |
+| ------------- | ------------------------------------------------------------------------------------ |
+| `"overwrite"` | Uploads to the requested path without an existence check. This is the default.       |
+| `"fail"`      | Checks the requested path and reports a `ConflictError` without starting the upload. |
+
+## Handle conflict errors
+
+```ts
+import { CONFLICT_ERROR_CODES, ConflictError } from "firebase-storage-kit";
+
+const handle = manager.uploadFile(file, {
+  path: "uploads/photo.jpg",
+  onConflict: "fail",
+});
+
+handle.on("error", (upload) => {
+  if (upload.error instanceof ConflictError) {
+    console.error(upload.error.code);
+    // conflict/path-already-exists
+
+    console.error(upload.error.path);
+    // uploads/photo.jpg
+  }
+});
+```
+
+Conflict checks happen before the upload starts, so conflict failures are not retried.
+
+## Batch uploads
+
+Set the strategy per file:
+
+```ts
+manager.uploadFiles(files, (file) => ({
+  path: `uploads/${file.name}`,
+  onConflict: "fail",
+}));
+```
+
+Each file is checked before its upload starts. With the default `continueOnError: true`, files without conflicts continue uploading when another file fails.
+
+<Callout>
+  **Conflict checks are best-effort across clients.** The Firebase browser SDK
+  does not provide an atomic create-if-absent upload. Another client can create
+  the object between the existence check and upload. Use server-side enforcement
+  when strict cross-client conflict safety is required.
+</Callout>

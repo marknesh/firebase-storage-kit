@@ -20,12 +20,15 @@ Options for a single upload (`uploadFile` or per-file in `uploadFiles`):
 ```ts
 interface UploadOptions {
   path: string;
+  onConflict?: "overwrite" | "fail";
   validate?: UploadValidationOptions;
   retry?: RetryOptions | false;
   contentType?: string;
   customMetadata?: Record<string, string>;
 }
 ```
+
+`onConflict` defaults to `"overwrite"`. See [Conflict handling](/docs/guides/conflict-handling) for behavior, examples, and cross-client limitations.
 
 ## UploadValidationOptions
 
@@ -162,6 +165,8 @@ These are exported for testing and advanced use:
 - `isRetryableStorageError`
 - `VALIDATION_ERROR_CODES`
 - `ValidationError`
+- `CONFLICT_ERROR_CODES`
+- `ConflictError`
 - `validateUpload`, `validateUploadSync`, `validateImageDimensions`, `validateImageDimensionLimits`
 - `getFileExtension`, `readImageDimensions`
 
