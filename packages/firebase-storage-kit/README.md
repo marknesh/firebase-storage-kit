@@ -54,6 +54,20 @@ handle.on("error", (upload) => {
 });
 ```
 
+### Stream large downloads
+
+```ts
+const { stream } = await manager.downloadStream("videos/launch-demo.mp4", {
+  onProgress: (loaded, total) => {
+    console.log(`${Math.round((loaded / total) * 100)}%`);
+  },
+});
+
+await stream.pipeTo(writable);
+```
+
+The object is delivered as a `ReadableStream`, so it can be piped without buffering the full file in memory.
+
 ### React
 
 ```tsx

@@ -38,6 +38,39 @@ const url = await manager.getDownloadURL("uploads/photo.jpg");
 
 Returns a public or tokenized URL depending on your bucket rules and object ACLs.
 
+## Stream a large download
+
+Use `downloadStream` when the object should flow to another destination without first becoming one large in-memory `Blob`:
+
+```ts
+const fileHandle = await window.showSaveFilePicker({
+  suggestedName: "launch-demo.mp4",
+});
+const writable = await fileHandle.createWritable();
+
+const { stream } = await manager.downloadStream("videos/launch-demo.mp4", {
+  onProgress: (loaded, total) => {
+    console.log(`${Math.round((loaded / total) * 100)}%`);
+  },
+});
+
+await stream.pipeTo(writable);
+```
+
+Progress starts when `pipeTo` consumes the stream. The File System Access API used above is primarily available in Chromium-based browsers; in other browsers, pipe the stream to a supported destination or use `getDownloadURL` for normal browser playback and downloads.
+
+Cancel an active request with an `AbortController`:
+
+```ts
+const controller = new AbortController();
+const { stream } = await manager.downloadStream("exports/account-data.zip", {
+  signal: controller.signal,
+});
+
+cancelButton.addEventListener("click", () => controller.abort());
+await stream.pipeTo(writable);
+```
+
 ## Delete a file
 
 ```ts

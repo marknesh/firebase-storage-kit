@@ -76,6 +76,32 @@ getDownloadURL(path: string): Promise<string>
 
 Returns a download URL for the object at `path`.
 
+### downloadStream
+
+```ts
+downloadStream(
+  path: string,
+  options?: DownloadStreamOptions
+): Promise<DownloadStreamResult>
+```
+
+Fetches the object and returns a `ReadableStream<Uint8Array>` without buffering the whole download in memory. `onProgress(loaded, total)` runs as the caller consumes chunks from the stream, and `signal` accepts an `AbortSignal` for cancellation.
+
+```ts
+const controller = new AbortController();
+const { stream, totalBytes, contentType } = await manager.downloadStream(
+  "videos/launch-demo.mp4",
+  {
+    signal: controller.signal,
+    onProgress: (loaded, total) => {
+      console.log(`${Math.round((loaded / total) * 100)}%`);
+    },
+  }
+);
+```
+
+The returned `totalBytes` comes from file's object metadata. Progress does not advance until `stream` is read, piped, or otherwise consumed.
+
 ### delete
 
 ```ts
