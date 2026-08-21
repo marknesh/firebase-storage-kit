@@ -167,8 +167,11 @@ export class UploadHandle extends Emitter<UploadHandleEvents> {
       return;
     }
     this.terminated = true;
-    this.controlHooks?.abort();
-    this.task?.cancel();
+    if (this.controlHooks) {
+      this.controlHooks.abort();
+    } else {
+      this.task?.cancel();
+    }
     this._clearControlHooks();
     this._setStatus("canceled");
     this.emit("canceled", this.upload);
