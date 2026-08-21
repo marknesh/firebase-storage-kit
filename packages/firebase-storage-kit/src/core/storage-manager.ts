@@ -1,4 +1,8 @@
 import type { StorageProvider } from "../providers/provider";
+import type {
+  DownloadStreamOptions,
+  DownloadStreamResult,
+} from "../types/download";
 import type { ListOptions, StorageListResult } from "../types/list";
 import type { FileMetadata } from "../types/metadata";
 import type { ProviderUploadTask, UploadOptions } from "../types/provider";
@@ -67,6 +71,50 @@ export class StorageManager {
   /** Returns a download URL for the object at `path`. */
   async getDownloadURL(path: string): Promise<string> {
     return await this.provider.getDownloadURL(path);
+  }
+
+  /**
+   * Streams the object at `path` without buffering it in memory.
+   *
+   * Progress is reported as the returned stream is consumed.
+   */
+  async downloadStream(
+    path: string,
+    options: DownloadStreamOptions = {}
+  ): Promise<DownloadStreamResult> {
+    const [downloadURL, metadata] = await Promise.all([
+      this.provider.getDownloadURL(path),
+      this.provider.getMetadata(path),
+    ]);
+    const response = await fetch(downloadURL, { signal: options.signal });
+
+    if (!response.ok) {
+      throw new Error(
+        `Download failed with ${response.status} ${response.statusText}`.trim()
+      );
+    }
+    if (!response.body) {
+      throw new Error("Download failed because the response body is empty");
+    }
+
+    let loaded = 0;
+    const stream = response.body.pipeThrough(
+      new TransformStream<Uint8Array, Uint8Array>({
+        transform: (chunk, controller) => {
+          loaded += chunk.byteLength;
+          options.onProgress?.(loaded, metadata.size);
+          controller.enqueue(chunk);
+        },
+      })
+    );
+    const contentType =
+      response.headers.get("content-type") ?? metadata.contentType;
+
+    return {
+      stream,
+      totalBytes: metadata.size,
+      ...(contentType === undefined ? {} : { contentType }),
+    };
   }
 
   /** Deletes the object at `path`. */

@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, mock, spyOn } from "bun:test";
 
 import { StorageManager } from "../src/core/storage-manager";
 import {
@@ -131,6 +131,119 @@ describe("StorageManager", () => {
       const third = manager.getState();
       expect(third).not.toBe(first);
       expect(third.uploads).toHaveLength(2);
+    });
+  });
+
+  describe("downloadStream", () => {
+    it("streams bytes and reports cumulative progress as they are consumed", async () => {
+      const { provider, spies } = createMockProvider({
+        getDownloadURL: async () => {
+          await Promise.resolve();
+          return "https://cdn.example/large-video.mp4";
+        },
+        getMetadata: async (path) => {
+          await Promise.resolve();
+          return {
+            contentType: "video/mp4",
+            createdAt: new Date("2024-01-01T00:00:00Z"),
+            path,
+            size: 11,
+            updatedAt: new Date("2024-01-02T00:00:00Z"),
+          };
+        },
+      });
+      const encoder = new TextEncoder();
+      const responseBody = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode("hello "));
+          controller.enqueue(encoder.encode("world"));
+          controller.close();
+        },
+      });
+      const fetchMock = spyOn(globalThis, "fetch").mockResolvedValue(
+        new Response(responseBody, {
+          headers: { "content-type": "video/mp4" },
+        })
+      );
+      const manager = new StorageManager(provider);
+      const progress: [number, number][] = [];
+      const abortController = new AbortController();
+
+      try {
+        const result = await manager.downloadStream("videos/large-video.mp4", {
+          onProgress: (loaded, total) => {
+            progress.push([loaded, total]);
+          },
+          signal: abortController.signal,
+        });
+
+        expect(progress).toEqual([]);
+        expect(result.totalBytes).toBe(11);
+        expect(result.contentType).toBe("video/mp4");
+        expect(
+          new TextDecoder().decode(
+            await new Response(result.stream).arrayBuffer()
+          )
+        ).toBe("hello world");
+        expect(progress).toEqual([
+          [6, 11],
+          [11, 11],
+        ]);
+        expect(spies.getDownloadURL).toHaveBeenCalledWith(
+          "videos/large-video.mp4"
+        );
+        expect(spies.getMetadata).toHaveBeenCalledWith(
+          "videos/large-video.mp4"
+        );
+        expect(fetchMock).toHaveBeenCalledWith(
+          "https://cdn.example/large-video.mp4",
+          { signal: abortController.signal }
+        );
+      } finally {
+        fetchMock.mockRestore();
+      }
+    });
+
+    it("rejects unsuccessful download responses", async () => {
+      const { provider } = createMockProvider();
+      const fetchMock = spyOn(globalThis, "fetch").mockResolvedValue(
+        new Response("Forbidden", { status: 403, statusText: "Forbidden" })
+      );
+      const manager = new StorageManager(provider);
+
+      try {
+        let caught: unknown;
+        try {
+          await manager.downloadStream("private/report.pdf");
+        } catch (error) {
+          caught = error;
+        }
+        expect(caught).toEqual(new Error("Download failed with 403 Forbidden"));
+      } finally {
+        fetchMock.mockRestore();
+      }
+    });
+
+    it("rejects successful responses without a body", async () => {
+      const { provider } = createMockProvider();
+      const fetchMock = spyOn(globalThis, "fetch").mockResolvedValue(
+        new Response(null)
+      );
+      const manager = new StorageManager(provider);
+
+      try {
+        let caught: unknown;
+        try {
+          await manager.downloadStream("empty/object");
+        } catch (error) {
+          caught = error;
+        }
+        expect(caught).toEqual(
+          new Error("Download failed because the response body is empty")
+        );
+      } finally {
+        fetchMock.mockRestore();
+      }
     });
   });
 

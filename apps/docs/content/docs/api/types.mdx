@@ -7,6 +7,8 @@ Key types re-exported from `firebase-storage-kit`. Import them alongside classes
 
 ```ts
 import type {
+  DownloadStreamOptions,
+  DownloadStreamResult,
   UploadOptions,
   UploadItem,
   StorageState,
@@ -29,6 +31,31 @@ interface UploadOptions {
 ```
 
 `onConflict` defaults to `"overwrite"`. See [Conflict handling](/docs/guides/conflict-handling) for behavior, examples, and cross-client limitations.
+
+## DownloadStreamOptions
+
+Options for `downloadStream`:
+
+```ts
+interface DownloadStreamOptions {
+  onProgress?: (loaded: number, total: number) => void;
+  signal?: AbortSignal;
+}
+```
+
+`onProgress` runs when the returned stream is consumed. Abort `signal` to cancel both the request and further stream reads.
+
+## DownloadStreamResult
+
+```ts
+interface DownloadStreamResult {
+  stream: ReadableStream<Uint8Array>;
+  totalBytes: number;
+  contentType?: string;
+}
+```
+
+Pipe or read `stream` to receive the object without first collecting the entire download into a `Blob`.
 
 ## UploadValidationOptions
 
