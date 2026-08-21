@@ -1,5 +1,11 @@
 # firebase-storage-kit
 
+## 1.6.2
+
+### Patch Changes
+
+- [#54](https://github.com/marknesh/firebase-storage-kit/pull/54) [`8328472`](https://github.com/marknesh/firebase-storage-kit/commit/83284722d9df7239ff4357cbd52e17b1e6f13a6e) Thanks [@marknesh](https://github.com/marknesh)! - Add `downloadStream()` for progress-aware, cancellable downloads without buffering the entire object in memory.
+
 ## 1.6.1
 
 ### Patch Changes
