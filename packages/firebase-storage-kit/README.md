@@ -71,19 +71,40 @@ The object is delivered as a `ReadableStream`, so it can be piped without buffer
 ### React
 
 ```tsx
+import type { FirebaseStorage } from "firebase/storage";
+import { useState } from "react";
+import type { UploadHandle } from "firebase-storage-kit";
 import { useStorageManager, useUpload } from "firebase-storage-kit/react";
 
-const manager = useStorageManager(storage);
-const handle = manager.uploadFile(file, {
-  path: `uploads/${file.name}`,
-  validate: {
-    maxSizeBytes: 10 * 1024 * 1024,
-    allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
-    allowedExtensions: [".jpg", ".jpeg", ".png", ".webp"],
-  },
-  retry: { maxRetries: 3 },
-});
-const upload = useUpload(handle);
+function ImageUpload({ storage }: { storage: FirebaseStorage }) {
+  const manager = useStorageManager(storage);
+  const [handle, setHandle] = useState<UploadHandle | null>(null);
+  const upload = useUpload(handle);
+
+  function onPick(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setHandle(
+      manager.uploadFile(file, {
+        path: `uploads/${file.name}`,
+        validate: {
+          maxSizeBytes: 10 * 1024 * 1024,
+          allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
+          allowedExtensions: [".jpg", ".jpeg", ".png", ".webp"],
+        },
+        retry: { maxRetries: 3 },
+      })
+    );
+  }
+
+  return (
+    <>
+      <input type="file" accept="image/*" onChange={onPick} />
+      {upload && <p>{upload.progress.toFixed(0)}% uploaded</p>}
+    </>
+  );
+}
 ```
 
 See [React hooks](https://firebase-storage-kit.vercel.app/docs/guides/react-hooks).

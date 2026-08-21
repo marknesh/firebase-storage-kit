@@ -88,6 +88,22 @@ describe("UploadHandle", () => {
       expect(handle.upload.status).toBe("canceled");
       expect(onCanceled).toHaveBeenCalledWith(handle.upload);
     });
+
+    it("uses the control hook without canceling the task twice", () => {
+      const handle = createHandle({ status: "uploading" });
+      const cancel = mock(() => {});
+      const abort = mock(() => {
+        cancel();
+      });
+      handle._attachTask({ cancel });
+      handle._registerControlHooks({ abort });
+
+      handle.cancel();
+
+      expect(abort).toHaveBeenCalledTimes(1);
+      expect(cancel).toHaveBeenCalledTimes(1);
+      expect(handle.upload.status).toBe("canceled");
+    });
   });
 
   describe("pause and resume", () => {
