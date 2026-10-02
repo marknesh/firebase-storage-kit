@@ -57,6 +57,11 @@ handle.on("error", (upload) => {
 ### Stream large downloads
 
 ```ts
+const fileHandle = await window.showSaveFilePicker({
+  suggestedName: "launch-demo.mp4",
+});
+const writable = await fileHandle.createWritable();
+
 const { stream } = await manager.downloadStream("videos/launch-demo.mp4", {
   onProgress: (loaded, total) => {
     console.log(`${Math.round((loaded / total) * 100)}%`);
@@ -66,7 +71,7 @@ const { stream } = await manager.downloadStream("videos/launch-demo.mp4", {
 await stream.pipeTo(writable);
 ```
 
-The object is delivered as a `ReadableStream`, so it can be piped without buffering the full file in memory.
+The object is delivered as a `ReadableStream`, so it can be piped to disk (via the File System Access API in Chromium browsers) without buffering the full file in memory.
 
 ### React
 

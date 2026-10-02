@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act, renderHook, waitFor } from "@testing-library/react";
@@ -19,6 +19,10 @@ import { createTestFile } from "./helpers/test-file";
 
 beforeAll(() => {
   GlobalRegistrator.register();
+});
+
+afterAll(async () => {
+  await GlobalRegistrator.unregister();
 });
 
 describe("react hooks", () => {
