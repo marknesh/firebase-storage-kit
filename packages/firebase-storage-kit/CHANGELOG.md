@@ -1,5 +1,11 @@
 # firebase-storage-kit
 
+## 1.6.3
+
+### Patch Changes
+
+- [#57](https://github.com/marknesh/firebase-storage-kit/pull/57) [`7ff0220`](https://github.com/marknesh/firebase-storage-kit/commit/7ff022042119db902c703ac1ec5964ee256182b0) Thanks [@marknesh](https://github.com/marknesh)! - Update README streaming download example
+
 ## 1.6.2
 
 ### Patch Changes
