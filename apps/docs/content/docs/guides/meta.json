@@ -1,15 +1,19 @@
 {
   "title": "Guides",
   "pages": [
+    "---Uploading---",
     "upload-lifecycle",
+    "conflict-handling",
+    "batch-uploads",
+    "retries",
+    "---Control & state---",
     "manager-state",
     "react-hooks",
-    "batch-uploads",
+    "---Validation & metadata---",
     "validation",
-    "retries",
     "custom-metadata",
     "content-type",
-    "conflict-handling",
+    "---Storage helpers---",
     "querying-files"
   ]
 }
