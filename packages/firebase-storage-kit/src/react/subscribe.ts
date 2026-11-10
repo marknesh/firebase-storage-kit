@@ -40,10 +40,12 @@ export const subscribeToUploadHandle = (
   };
 };
 
-/** @internal */
-export const getUploadHandleSnapshot = (handle: UploadHandle): UploadItem => ({
-  ...handle.upload,
-});
+/**
+ * Same reference until the upload changes (UploadHandle replaces it on each update).
+ * @internal
+ */
+export const getUploadHandleSnapshot = (handle: UploadHandle): UploadItem =>
+  handle.upload;
 
 /** @internal */
 export const subscribeToBatchHandle = (

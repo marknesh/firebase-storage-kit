@@ -1,8 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { memo } from "react";
 
 import { StorageManager } from "../src/core/storage-manager";
 import {
@@ -11,8 +12,10 @@ import {
   useStorageState,
   useUpload,
 } from "../src/react";
+import type { UploadItem } from "../src/types/upload";
 import {
   createMockProvider,
+  waitForMicrotasks,
   waitForUploadSettled,
 } from "./helpers/mock-provider";
 import { createTestFile } from "./helpers/test-file";
@@ -26,6 +29,46 @@ afterAll(async () => {
 });
 
 describe("react hooks", () => {
+  it("memoized children re-render when an upload's progress changes", async () => {
+    let reportProgress: ((sent: number, total: number) => void) | undefined;
+    const { provider } = createMockProvider({
+      uploadBehavior: {
+        onStart: (_file, _options, callbacks) => {
+          reportProgress = callbacks.onProgress;
+        },
+        type: "manual",
+      },
+    });
+    const manager = new StorageManager(provider);
+
+    const Row = memo(({ upload }: { upload: UploadItem }) => (
+      <span data-testid="progress">{upload.progress}</span>
+    ));
+    const List = () => {
+      const { uploads } = useStorageState(manager);
+      return (
+        <>
+          {uploads.map((u) => (
+            <Row key={u.id} upload={u} />
+          ))}
+        </>
+      );
+    };
+
+    const view = render(<List />);
+    await act(async () => {
+      manager.uploadFile(createTestFile("a.txt"), { path: "uploads/a.txt" });
+      await waitForMicrotasks();
+    });
+
+    act(() => {
+      reportProgress?.(1, 4);
+    });
+
+    expect(view.getByTestId("progress").textContent).toBe("25");
+    view.unmount();
+  });
+
   it("useStorageState reflects manager uploads", async () => {
     const { provider } = createMockProvider({
       uploadBehavior: { async: true, type: "success" },
