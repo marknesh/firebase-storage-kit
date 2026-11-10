@@ -109,6 +109,9 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
       child.on("progress", (upload) => {
         this.handleChildProgress(idx, upload);
       });
+      child.on("statusChange", (upload) => {
+        this.handleChildStatusChange(upload);
+      });
       child.on("retry", (retryEvent) => {
         this.handleChildRetry(idx, retryEvent);
       });
@@ -233,6 +236,17 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
     const snap = this.snapshot();
     this.emit("progress", snap);
     this.emit("change", snap);
+  }
+
+  // Pause/resume only change a child's status, with no progress or settle event
+  // after it, so without this the batch would never emit `change` for them.
+  // "retrying" and the final statuses are skipped: the retry/settle handlers
+  // emit `change` right after, and forwarding them too would double it.
+  private handleChildStatusChange(upload: UploadItem): void {
+    if (upload.status !== "paused" && upload.status !== "uploading") {
+      return;
+    }
+    this.emit("change", this.snapshot());
   }
 
   private handleChildRetry(idx: number, event: UploadRetryEvent): void {

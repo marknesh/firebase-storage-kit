@@ -181,4 +181,26 @@ describe("react hooks", () => {
     expect(result.current?.uploads).toHaveLength(2);
     expect(result.current?.completedCount).toBe(2);
   });
+
+  it("useBatch re-renders when the batch is paused and resumed", () => {
+    const { provider } = createMockProvider({
+      uploadBehavior: { onStart: () => {}, type: "manual" },
+    });
+    const manager = new StorageManager(provider);
+    const batch = manager.uploadFiles([createTestFile("a.txt")], (file) => ({
+      path: `uploads/${file.name}`,
+    }));
+    const { result } = renderHook(() => useBatch(batch));
+    expect(result.current?.uploads[0]?.status).toBe("uploading");
+
+    act(() => {
+      batch.pause();
+    });
+    expect(result.current?.uploads[0]?.status).toBe("paused");
+
+    act(() => {
+      batch.resume();
+    });
+    expect(result.current?.uploads[0]?.status).toBe("uploading");
+  });
 });
