@@ -1,5 +1,15 @@
 # firebase-storage-kit
 
+## 1.6.4
+
+### Patch Changes
+
+- [#62](https://github.com/marknesh/firebase-storage-kit/pull/62) [`de28a09`](https://github.com/marknesh/firebase-storage-kit/commit/de28a09146fc3c9a8fefa7d1b248f17d6fdb6b2f) Thanks [@marknesh](https://github.com/marknesh)! - Fix `useBatch` not updating when a batch is paused or resumed. A batch now emits `change` whenever one of its files is paused or resumed, whether through `batch.pause()` / `batch.resume()` or by calling `pause()` / `resume()` on a single file, so `batch.on("change", ...)` and `useBatch(batch)` show the new statuses.
+
+- [#60](https://github.com/marknesh/firebase-storage-kit/pull/60) [`8ca4809`](https://github.com/marknesh/firebase-storage-kit/commit/8ca4809262e2954b57feb042b04b27b7148452a4) Thanks [@marknesh](https://github.com/marknesh)! - Fix memoized React components not updating during uploads. `UploadItem` snapshots are now replaced with a new object on every change instead of being mutated in place, so `React.memo`, `useMemo` deps and `prev !== next` checks see progress, status and errors. `batch.snapshot().uploads` returns a new array only when a file in the batch changed.
+
+  `UploadItem` fields are now `readonly`. If you stored `handle.upload` and read it later, read `handle.upload` again, listen to the events, or use the `useUpload(handle)` / `useBatch(batch)` hooks in React to get the latest values.
+
 ## 1.6.3
 
 ### Patch Changes
