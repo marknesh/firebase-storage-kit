@@ -29,6 +29,24 @@ const waitForBatchTerminal = async (
   throw new Error("batch did not finish in time");
 };
 
+// Two files that start uploading and never finish, plus the statuses seen on each batch `change`.
+const startManualBatch = () => {
+  const { provider } = createMockProvider({
+    uploadBehavior: { onStart: () => {}, type: "manual" },
+  });
+  const manager = new StorageManager(provider);
+  const batch = manager.uploadFiles(
+    [createTestFile("a.txt"), createTestFile("b.txt")],
+    (file) => ({ path: `uploads/${file.name}` }),
+    { concurrency: 2 }
+  );
+  const statuses: string[][] = [];
+  batch.on("change", (snap) => {
+    statuses.push(snap.uploads.map((u) => u.status));
+  });
+  return { batch, statuses };
+};
+
 describe("BatchHandle via StorageManager.uploadFiles", () => {
   it("snapshot().uploads changes reference only when a child upload changes", async () => {
     const progressCallbacks: ((sent: number, total: number) => void)[] = [];
@@ -61,6 +79,43 @@ describe("BatchHandle via StorageManager.uploadFiles", () => {
     expect(first[0]?.progress).toBe(0);
     // the untouched child keeps its reference, so memoized rows for it can skip rendering
     expect(second[1]).toBe(first[1]);
+  });
+
+  describe("change event on status-only updates", () => {
+    it("emits change with paused statuses when the batch pauses", () => {
+      const { batch, statuses } = startManualBatch();
+
+      batch.pause();
+
+      expect(statuses.at(-1)).toEqual(["paused", "paused"]);
+    });
+
+    it("emits change with uploading statuses when the batch resumes", () => {
+      const { batch, statuses } = startManualBatch();
+      batch.pause();
+
+      batch.resume();
+
+      expect(statuses.at(-1)).toEqual(["uploading", "uploading"]);
+    });
+
+    it("emits change when a single child is paused directly", () => {
+      const { batch, statuses } = startManualBatch();
+
+      batch.uploads[0]?.pause();
+
+      expect(statuses.at(-1)).toEqual(["paused", "uploading"]);
+    });
+
+    it("emits change once per child that settles, not twice", async () => {
+      const { batch, statuses } = startManualBatch();
+
+      batch.uploads[0]?.cancel();
+      await waitForMicrotasks();
+
+      // one change for "canceled"; the statusChange is not forwarded a second time
+      expect(statuses).toEqual([["canceled", "uploading"]]);
+    });
   });
 
   it("respects concurrency limits", async () => {
