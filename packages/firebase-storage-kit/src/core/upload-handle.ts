@@ -39,8 +39,7 @@ export interface UploadHandleEvents extends Record<string, unknown> {
  * @returns An {@link UploadHandle} to control the upload: `pause`, `resume`, `cancel`, and listen for progress with `.on`.
  */
 export class UploadHandle extends Emitter<UploadHandleEvents> {
-  public readonly upload: UploadItem;
-
+  private current: UploadItem;
   private task: ProviderUploadTask | null = null;
   private readonly onChange: () => void;
   private terminated = false;
@@ -49,8 +48,16 @@ export class UploadHandle extends Emitter<UploadHandleEvents> {
 
   constructor(upload: UploadItem, onChange: () => void) {
     super();
-    this.upload = upload;
+    this.current = upload;
     this.onChange = onChange;
+  }
+
+  /**
+   * Latest snapshot of this upload. Treat it as read-only: every change creates a new object,
+   * so `prev !== next` tells you something changed (safe for `React.memo`, `useMemo` deps, etc.).
+   */
+  get upload(): UploadItem {
+    return this.current;
   }
 
   /** @internal */
@@ -78,7 +85,7 @@ export class UploadHandle extends Emitter<UploadHandleEvents> {
     if (this.upload.status === status) {
       return;
     }
-    this.upload.status = status;
+    this.update({ status });
     this.emit("statusChange", this.upload);
   }
 
@@ -87,10 +94,11 @@ export class UploadHandle extends Emitter<UploadHandleEvents> {
     if (this.terminated) {
       return;
     }
-    this.upload.bytesTransferred = bytesTransferred;
-    this.upload.totalBytes = totalBytes;
-    this.upload.progress =
-      totalBytes > 0 ? (bytesTransferred / totalBytes) * 100 : 0;
+    this.update({
+      bytesTransferred,
+      progress: totalBytes > 0 ? (bytesTransferred / totalBytes) * 100 : 0,
+      totalBytes,
+    });
     if (this.upload.status !== "uploading") {
       this._setStatus("uploading");
     }
@@ -103,12 +111,13 @@ export class UploadHandle extends Emitter<UploadHandleEvents> {
     if (this.terminated) {
       return;
     }
-    this.upload.attempt = attempt;
-    // oxlint-disable-next-line typescript/no-deprecated -- intentionally mirroring the deprecated alias
-    this.upload.retryAttempt = attempt;
-    this.upload.bytesTransferred = 0;
-    this.upload.progress = 0;
-    this.upload.error = undefined;
+    this.update({
+      attempt,
+      bytesTransferred: 0,
+      error: undefined,
+      progress: 0,
+      retryAttempt: attempt,
+    });
     this.pausedDuringRetry = false;
     this._setStatus("uploading");
     this.onChange();
@@ -119,10 +128,11 @@ export class UploadHandle extends Emitter<UploadHandleEvents> {
     if (this.terminated) {
       return;
     }
-    this.upload.attempt = details.attempt;
-    // oxlint-disable-next-line typescript/no-deprecated -- intentionally mirroring the deprecated alias
-    this.upload.retryAttempt = details.attempt;
-    this.upload.error = details.error;
+    this.update({
+      attempt: details.attempt,
+      error: details.error,
+      retryAttempt: details.attempt,
+    });
     this.task = null;
     this._setStatus("retrying");
     this.emit("retry", {
@@ -141,8 +151,7 @@ export class UploadHandle extends Emitter<UploadHandleEvents> {
       return;
     }
     this.terminated = true;
-    this.upload.downloadURL = downloadURL;
-    this.upload.progress = 100;
+    this.update({ downloadURL, progress: 100 });
     this._clearControlHooks();
     this._setStatus("success");
     this.emit("success", this.upload);
@@ -155,7 +164,7 @@ export class UploadHandle extends Emitter<UploadHandleEvents> {
       return;
     }
     this.terminated = true;
-    this.upload.error = error;
+    this.update({ error });
     this._clearControlHooks();
     this._setStatus("error");
     this.emit("error", this.upload);
@@ -214,5 +223,12 @@ export class UploadHandle extends Emitter<UploadHandleEvents> {
     this.task?.resume?.();
     this._setStatus("uploading");
     this.onChange();
+  }
+
+  // ==========================================
+
+  /** Replaces the snapshot instead of mutating it, so consumers can detect changes by reference. */
+  private update(patch: Partial<UploadItem>): void {
+    this.current = { ...this.current, ...patch };
   }
 }

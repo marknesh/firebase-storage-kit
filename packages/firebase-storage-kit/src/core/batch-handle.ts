@@ -60,10 +60,10 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
   private paused = false;
   private terminalEmitted = false;
 
-  // Stable view of UploadItems; the items themselves mutate in place, but the
-  // array reference never changes, so we allocate it once instead of rebuilding
-  // it on every snapshot.
-  private readonly uploadsView: UploadItem[];
+  // Last `uploads` array handed out by snapshot(). Children replace their
+  // UploadItem on every change, so this is rebuilt only when one of them did;
+  // otherwise the same reference is reused (cheap equality checks for consumers).
+  private uploadsView: UploadItem[];
 
   // Running aggregates updated incrementally on each child event so snapshot()
   // is O(1) instead of O(n) per progress tick.
@@ -185,8 +185,18 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
       failedCount: this.failedCount,
       id: this.id,
       totalProgress,
-      uploads: this.uploadsView,
+      uploads: this.currentUploads(),
     };
+  }
+
+  private currentUploads(): UploadItem[] {
+    const changed = this.uploads.some(
+      (handle, idx) => handle.upload !== this.uploadsView[idx]
+    );
+    if (changed) {
+      this.uploadsView = this.uploads.map((handle) => handle.upload);
+    }
+    return this.uploadsView;
   }
 
   private updateAggregate(idx: number, u: UploadItem): void {

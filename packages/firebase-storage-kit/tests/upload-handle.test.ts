@@ -21,6 +21,37 @@ const createHandle = (upload?: Partial<UploadItem>): UploadHandle => {
 };
 
 describe("UploadHandle", () => {
+  describe("immutable snapshots", () => {
+    it("replaces the upload object on each change and leaves old snapshots untouched", () => {
+      const handle = createHandle({ status: "uploading" });
+      const before = handle.upload;
+
+      handle._reportProgress(2, 5);
+      const afterProgress = handle.upload;
+
+      expect(afterProgress).not.toBe(before);
+      expect(before.progress).toBe(0);
+      expect(afterProgress.progress).toBe(40);
+
+      handle._reportSuccess("https://example.com/file.txt");
+
+      expect(handle.upload).not.toBe(afterProgress);
+      expect(afterProgress.status).toBe("uploading");
+      expect(handle.upload.status).toBe("success");
+    });
+
+    it("keeps the same object when a call changes nothing", () => {
+      const handle = createHandle({ status: "uploading" });
+      const before = handle.upload;
+
+      // Both are no-ops: not paused, and the status is already "uploading".
+      handle.resume();
+      handle._setStatus("uploading");
+
+      expect(handle.upload).toBe(before);
+    });
+  });
+
   describe("progress", () => {
     it("updates progress and emits progress events", () => {
       const handle = createHandle({ status: "uploading" });

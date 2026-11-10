@@ -30,6 +30,39 @@ const waitForBatchTerminal = async (
 };
 
 describe("BatchHandle via StorageManager.uploadFiles", () => {
+  it("snapshot().uploads changes reference only when a child upload changes", async () => {
+    const progressCallbacks: ((sent: number, total: number) => void)[] = [];
+    const { provider } = createMockProvider({
+      uploadBehavior: {
+        onStart: (_file, _options, callbacks) => {
+          progressCallbacks.push(callbacks.onProgress);
+        },
+        type: "manual",
+      },
+    });
+    const manager = new StorageManager(provider);
+    const batch = manager.uploadFiles(
+      [createTestFile("a.txt"), createTestFile("b.txt")],
+      (file) => ({ path: `uploads/${file.name}` }),
+      { concurrency: 2 }
+    );
+    await waitForMicrotasks();
+    expect(progressCallbacks).toHaveLength(2);
+
+    const first = batch.snapshot().uploads;
+    expect(batch.snapshot().uploads).toBe(first);
+
+    progressCallbacks[0]?.(1, 5);
+    const second = batch.snapshot().uploads;
+
+    expect(second).not.toBe(first);
+    expect(second[0]).not.toBe(first[0]);
+    expect(second[0]?.progress).toBe(20);
+    expect(first[0]?.progress).toBe(0);
+    // the untouched child keeps its reference, so memoized rows for it can skip rendering
+    expect(second[1]).toBe(first[1]);
+  });
+
   it("respects concurrency limits", async () => {
     let inFlight = 0;
     let maxInFlight = 0;
