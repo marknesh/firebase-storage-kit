@@ -301,14 +301,10 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
       }
       this.terminalEmitted = true;
       this.emit("error", snap);
-      this.onChange();
       return;
     }
 
     if (this.failedFast || this.canceled) {
-      // we call this because a task can canceled as seen above
-      // by h.cancel(). Which then triggers the handelchildSettled call above.
-      this.onChange();
       return;
     }
 
@@ -318,7 +314,6 @@ export class BatchHandle extends Emitter<BatchHandleEvents> {
       this.terminalEmitted = true;
       this.emit("success", snap);
     }
-
-    this.onChange();
+    // No onChange() here: the child calls its own right after, so the manager is notified once.
   }
 }

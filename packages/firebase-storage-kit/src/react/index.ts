@@ -7,5 +7,6 @@ export {
   useBatch,
   useStorageManager,
   useStorageState,
+  type StorageStateSelectorOptions,
   useUpload,
 } from "./hooks";

@@ -3,6 +3,7 @@ import { describe, expect, it, mock, spyOn } from "bun:test";
 import { StorageManager } from "../src/core/storage-manager";
 import {
   createMockProvider,
+  waitForMicrotasks,
   waitForUploadSettled,
 } from "./helpers/mock-provider";
 import { createTestFile } from "./helpers/test-file";
@@ -92,6 +93,30 @@ describe("StorageManager", () => {
       await waitForUploadSettled();
 
       expect(listener.mock.calls.length).toBe(callsBefore);
+    });
+
+    it("notifies once, not twice, when a file in a batch finishes", async () => {
+      let finish: ((url: string) => void) | undefined;
+      const { provider } = createMockProvider({
+        uploadBehavior: {
+          onStart: (_file, _options, callbacks) => {
+            finish = callbacks.onSuccess;
+          },
+          type: "manual",
+        },
+      });
+      const manager = new StorageManager(provider);
+      manager.uploadFiles([createTestFile("a.txt")], (file) => ({
+        path: `uploads/${file.name}`,
+      }));
+      await waitForMicrotasks();
+      const listener = mock(() => {});
+      manager.subscribe(listener);
+
+      finish?.("https://example.com/a.txt");
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(manager.getState().batches[0]?.completedCount).toBe(1);
     });
 
     it("passes current state to listeners on each change", async () => {
