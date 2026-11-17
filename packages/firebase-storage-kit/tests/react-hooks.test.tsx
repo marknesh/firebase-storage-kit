@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
 
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act, render, renderHook, waitFor } from "@testing-library/react";
@@ -27,6 +27,29 @@ beforeAll(() => {
 afterAll(async () => {
   await GlobalRegistrator.unregister();
 });
+
+// One upload that starts and then waits; reportProgress(sent) reports sent of 5 bytes.
+const startManualUpload = async () => {
+  let reportProgress: ((sent: number, total: number) => void) | undefined;
+  const { provider } = createMockProvider({
+    uploadBehavior: {
+      onStart: (_file, _options, callbacks) => {
+        reportProgress = callbacks.onProgress;
+      },
+      type: "manual",
+    },
+  });
+  const manager = new StorageManager(provider);
+  manager.uploadFile(createTestFile("a.txt"), { path: "uploads/a.txt" });
+  await waitForMicrotasks();
+  return {
+    manager,
+    reportProgress: (sent: number) => reportProgress?.(sent, 5),
+  };
+};
+
+const sameStatuses = (a: string[], b: string[]): boolean =>
+  a.length === b.length && a.every((status, i) => status === b[i]);
 
 describe("react hooks", () => {
   it("memoized children re-render when an upload's progress changes", async () => {
@@ -93,6 +116,96 @@ describe("react hooks", () => {
     await waitFor(() => {
       expect(result.current.uploads[0]?.status).toBe("success");
     });
+  });
+
+  describe("useStorageState with a selector", () => {
+    it("skips re-renders when the selected value is unchanged", async () => {
+      const { manager, reportProgress } = await startManualUpload();
+      let renders = 0;
+      const { result } = renderHook(() => {
+        renders += 1;
+        return useStorageState((s) => s.uploads.length, { manager });
+      });
+      expect(result.current).toBe(1);
+      const rendersBefore = renders;
+
+      act(() => {
+        reportProgress(1);
+        reportProgress(2);
+        reportProgress(3);
+      });
+      expect(renders).toBe(rendersBefore);
+
+      act(() => {
+        manager.uploadFile(createTestFile("b.txt"), { path: "uploads/b.txt" });
+      });
+      expect(result.current).toBe(2);
+    });
+
+    it("re-renders when the selected value changes", async () => {
+      const { manager, reportProgress } = await startManualUpload();
+      const { result } = renderHook(() =>
+        useStorageState((s) => s.uploads[0]?.progress, { manager })
+      );
+
+      act(() => {
+        reportProgress(2);
+      });
+
+      expect(result.current).toBe(40);
+    });
+
+    it("uses isEqual to keep the previous value for equal selections", async () => {
+      const { manager, reportProgress } = await startManualUpload();
+      let renders = 0;
+      const { result } = renderHook(() => {
+        renders += 1;
+        return useStorageState((s) => s.uploads.map((u) => u.status), {
+          isEqual: sameStatuses,
+          manager,
+        });
+      });
+      const first = result.current;
+      const rendersBefore = renders;
+
+      act(() => {
+        reportProgress(1);
+        reportProgress(2);
+      });
+
+      expect(renders).toBe(rendersBefore);
+      expect(result.current).toBe(first);
+    });
+
+    it("reads the manager from StorageManagerProvider", async () => {
+      const { manager } = await startManualUpload();
+      const wrapper = ({ children }: { children: ReactNode }) => (
+        <StorageManagerProvider manager={manager}>
+          {children}
+        </StorageManagerProvider>
+      );
+
+      const { result } = renderHook(
+        () => useStorageState((s) => s.uploads.length),
+        { wrapper }
+      );
+
+      expect(result.current).toBe(1);
+    });
+  });
+
+  it("useStorageState subscribes once, not on every render", () => {
+    const { provider } = createMockProvider({
+      uploadBehavior: { onStart: () => {}, type: "manual" },
+    });
+    const manager = new StorageManager(provider);
+    const subscribe = spyOn(manager, "subscribe");
+
+    const { rerender } = renderHook(() => useStorageState(manager));
+    rerender();
+    rerender();
+
+    expect(subscribe).toHaveBeenCalledTimes(1);
   });
 
   it("useStorageState reads from StorageManagerProvider", () => {

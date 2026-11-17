@@ -60,6 +60,35 @@ function UploadDashboard() {
 
 With an explicit manager: `useStorageState(manager)`.
 
+### Re-render only for the part you use
+
+`useStorageState()` re-renders on every change, including every progress update of every upload.
+For components that only need part of the state, pass a selector. The component re-renders only
+when the selected value changes:
+
+```tsx
+function BatchCount() {
+  const batchCount = useStorageState((state) => state.batches.length);
+  return <span>{batchCount} batches</span>;
+}
+```
+
+The selected values are compared with `Object.is`. If your selector builds a new array or object,
+pass `isEqual` so equal results don't re-render:
+
+```tsx
+const statuses = useStorageState(
+  (state) => state.uploads.map((upload) => upload.status),
+  {
+    isEqual: (a, b) =>
+      a.length === b.length && a.every((status, i) => status === b[i]),
+  }
+);
+```
+
+Outside a `StorageManagerProvider`, pass the manager in the options:
+`useStorageState(selector, { manager })`.
+
 ## Single file progress
 
 A `handle` is what `manager.uploadFile(...)` returns. Store it in state, then pass
